@@ -1,13 +1,14 @@
 import { ethers } from "hardhat";
 
+
 async function main() {
-
-  const ServiceToken = await ethers.getContractFactory("ERC3525Service");
-  const SlotRegistry = await ethers.getContractFactory("ERC3525SlotRegistry");
-
-  await lock.deployed();
-
-  console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`);
+	  
+  const SlotRegistry = await ethers.getContractFactory("SlotRegistry");
+  const registry = await SlotRegistry.deployed();
+  console.log(
+    `Contract deployed to ${registry.address}`
+  );
+  
 }
 
 // We recommend this pattern to be able to use async/await everywhere

@@ -114,9 +114,6 @@ contract Service is solv.ERC3525, Ownable {
     SlotRegistry sr;
     SpendLock private lockGenerator; 
     
-
-
-        
     mapping (uint256 => uint256) private _spendLock;
     
     event MintServiceToken(uint256  _tokenId);

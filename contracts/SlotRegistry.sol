@@ -28,7 +28,5 @@ contract SlotRegistry {
         //return string(abi.encodePacked(baseURI, "slot/", slot_.toString())); 
         return _registry[slotId_];
     }
-    
-    
-    
+
 }

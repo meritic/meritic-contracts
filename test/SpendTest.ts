@@ -20,8 +20,8 @@ describe("Token contract", function () {
   // Network to that snapshot in every test.
   async function deployTokenFixture() {
     // Get the ContractFactory and Signers here.
-    const ServiceToken = await ethers.getContractFactory("ERC3525Service");
-    const SlotRegistry = await ethers.getContractFactory("ERC3525SlotRegistry");
+    const ServiceToken = await ethers.getContractFactory("Service");
+    const SlotRegistry = await ethers.getContractFactory("SlotRegistry");
     
     const [owner, addr1, addr2] = await ethers.getSigners();
     
