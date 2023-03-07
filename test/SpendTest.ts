@@ -25,13 +25,13 @@ describe("Token contract", function () {
     
     const [owner, addr1, addr2] = await ethers.getSigners();
     
-	const slotRegistryBaseURI = "abc";
+	//const slotRegistryBaseURI = "abc";
 	
 	
     // To deploy our contract, we just have to call Token.deploy() and await
     // its deployed() method, which happens once its transaction has been
     // mined.
-    const registry = await SlotRegistry.deploy(slotRegistryBaseURI);
+    const registry = await SlotRegistry.deploy();
     await registry.deployed();
     
         		

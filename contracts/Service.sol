@@ -108,28 +108,32 @@ contract Service is solv.ERC3525, Ownable {
     using Strings for address;
     using Strings for uint256;
     
-    address private _serviceOwner;
-    address private _proxyRegistryAddress;
+    address private _proxyServiceAddress;
+    string private _baseuri;
     
     SlotRegistry sr;
     SpendLock private lockGenerator; 
+    
     
     mapping (uint256 => uint256) private _spendLock;
     
     event MintServiceToken(uint256  _tokenId);
 
     
-    constructor(address serviceOwner_, 
-        		address proxyAddress_,
+    constructor(address proxyServiceAddress_,
         		address slotRegistry_, 
         		address lockAdmin_, string memory name_, string memory symbol_) solv.ERC3525(name_, symbol_, 18) {
-        		    
-        _serviceOwner = serviceOwner_;
-        _proxyRegistryAddress = proxyAddress_;
+
+        _proxyServiceAddress = proxyServiceAddress_;
         sr = SlotRegistry(slotRegistry_);
         lockGenerator = new SpendLock(string(abi.encodePacked('LOCKS FOR: ', name_, '(', symbol_, ')')), string(abi.encodePacked('LOCK:', symbol_)), lockAdmin_);   
     }
     
+    
+    
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseuri;
+    }
     
     
    
@@ -153,9 +157,12 @@ contract Service is solv.ERC3525, Ownable {
 
 
 
-    function create(address _initialOwner, uint256 slot_, uint256 initialValue_ /*, string memory _uri */) public onlyOwner returns (uint256) {
+    function create(address _initialOwner, uint256 slot_, uint256 initialValue_,  string memory _uri) public onlyOwner returns (uint256) {
+        _baseuri = _uri;
         uint256 tokenId = _createOriginalTokenId();
+        
         _mint(_initialOwner, tokenId, slot_, initialValue_);
+        
         uint256 lockId = lockGenerator.mintTo(_initialOwner);
        	_spendLock[tokenId] = lockId;
 
