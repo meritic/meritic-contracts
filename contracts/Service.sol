@@ -2,17 +2,24 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@solvprotocol/erc-3525/ERC3525.sol";
+import "./ServiceMetadataDescriptor.sol";
+
+/*
+ * import "@solvprotocol/erc-3525/ERC3525.sol" as solv;
 import "@solvprotocol/erc-3525/ERC3525.sol" as solv;
+ 
+ * 
+ */
 
 
-
+import "./underlying/WUSDC.sol";
 import "./SlotRegistry.sol";
-
+import "./extensions/IValue.sol";
 
 
 
@@ -28,105 +35,54 @@ contract ProxyRegistry {
 
 
 
-
-
-contract SpendLock is ERC721, Ownable {
-    
-    using Counters for Counters.Counter;
-    
-    Counters.Counter private _nextTokenId;
-    
-    address private _lockAdminAddress;
-    
-    constructor(string memory name_, string memory symbol_, address meriticLockAdminAddress_) ERC721(name_, symbol_) {
-        _lockAdminAddress = meriticLockAdminAddress_;
-    }
-    
-
-	function isApprovedForAll(address _owner, address _operator) override public view returns (bool isOperator) {
-
-	    /*ProxyRegistry proxyRegistry = ProxyRegistry(_lockAdminAddress);
-	    if (address(proxyRegistry.proxies(_owner)) == _operator) {
-	      return true;
-	    }*/
-	    
-	    return super.isApprovedForAll(_owner, _operator);
-	}
-	
-	
-	
-	function mintTo(address _to) public onlyOwner returns (uint256){
-	    _nextTokenId.increment();
-        uint256 currentTokenId = _nextTokenId.current();
-        _safeMint(_to, currentTokenId);
-        _setApprovalForAll(_to, _msgSender(), true);
-        return currentTokenId;
-    }
-    
-    
-    function transferToken(
-        address from_,
-        address to_,
-        uint256 tokenId_
-    ) public payable {
-        
-        super.safeTransferFrom(from_, to_, tokenId_);
-    }
-    
-    
-    
-    
-    
-    
-    function burn(uint256 tokenId_) public onlyOwner {
- 
-        require(_isApprovedOrOwner(_msgSender(), tokenId_), "SpendLock: transfer caller is not owner nor approved");
-        super._burn(tokenId_);
-    }
-    
-    
-    
-    
-    function owner() public view override returns (address) {
-        return super.owner();
-    }
-    
-    function msgSender() public view returns (address) {
-        return _msgSender();
-    }
-    
-   
-}
-
-
-
-
-
-
-contract Service is solv.ERC3525, Ownable {
+contract Service is ERC3525, Ownable {
     
     using Strings for address;
     using Strings for uint256;
     
-    address private _proxyServiceAddress;
+    address private _serviceAddress;
     string private _baseuri;
     
-    SlotRegistry sr;
-    SpendLock private lockGenerator; 
-    
-    
-    mapping (uint256 => uint256) private _spendLock;
-    
-    event MintServiceToken(uint256  _tokenId);
 
     
-    constructor(address proxyServiceAddress_,
-        		address slotRegistry_, 
-        		address lockAdmin_, string memory name_, string memory symbol_) solv.ERC3525(name_, symbol_, 18) {
+    //mapping (uint256 => uint256) private _spendLock;
+    
+    event MintServiceToken(uint256  tokenId, uint256 slot, uint256 value);
+	event MetadataDescriptor(address  contractAddress);
 
-        _proxyServiceAddress = proxyServiceAddress_;
-        sr = SlotRegistry(slotRegistry_);
-        lockGenerator = new SpendLock(string(abi.encodePacked('LOCKS FOR: ', name_, '(', symbol_, ')')), string(abi.encodePacked('LOCK:', symbol_)), lockAdmin_);   
+	IValue private _valueToken;
+	
+	//address constant private USDCPolygonMumbai = 0x0fa8781a83e46826621b3bc094ea2a0212e71b23;
+	//address constant private ETHPolygonMumbai =		0xBA47cF08bDFbA09E7732c0e48E12a11Cd1536bcd;
+	
+	
+	TokenData[] private _allTokens;
+    mapping(uint256 => uint256) private _allTokensIndex;
+    mapping(address => AddressData) private _addressData;
+
+    constructor(address serviceAddress_,
+        		address slotRegistry_,
+        		string memory name_, 
+        		string memory symbol_, 
+        		string memory baseuri_,
+        		string memory contractDescription_,
+        		string memory contractImage_,
+        		address valueTokenContractAddress_,
+        		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
+        		    
+        		string memory valueToken_ = "USDC";
+
+        _serviceAddress = serviceAddress_;
+  		_baseuri = baseuri_;
+  		
+        metadataDescriptor = new ServiceMetadataDescriptor(_baseuri, contractDescription_, contractImage_, slotRegistry_);
+        
+        
+        if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
+            _valueToken = WUSDC(valueTokenContractAddress_); 
+        }
+        
+        emit MetadataDescriptor(address(metadataDescriptor));
     }
     
     
@@ -136,40 +92,54 @@ contract Service is solv.ERC3525, Ownable {
     }
     
     
-   
-	function isApprovedForAll(address _owner, address _operator) override public view returns (bool isOperator) {
-
-	    /*ProxyRegistry proxyRegistry = ProxyRegistry(_proxyRegistryAddress);
-	    if (address(proxyRegistry.proxies(_owner)) == _operator) {
-	      return true;
-	    }*/
-	    
-	    return super.isApprovedForAll(_owner, _operator);
-	}
-	
-
-	function slotURI(uint256 slot_) public view override returns (string memory) {
-        return sr.slotURI(slot_); 
+ 	function _setBaseURI(string memory uri_) external virtual returns (string memory) {
+        _baseuri = uri_;
+        ServiceMetadataDescriptor(address(metadataDescriptor)).setBaseURI(uri_);
     }
+ 
+ 	
 	
-
-
-
-
-
-    function create(address _initialOwner, uint256 slot_, uint256 initialValue_,  string memory _uri) public onlyOwner returns (uint256) {
-        _baseuri = _uri;
+    function mint(address owner_, 
+        			uint256 slot_, 
+        			uint256 value_,
+        			string memory uuid_,
+        			string memory token_description_,
+        			string memory token_image_
+    ) public onlyOwner returns (uint256) {
+ 
         uint256 tokenId = _createOriginalTokenId();
+       _valueToken.mint(value_, address(this));
         
-        _mint(_initialOwner, tokenId, slot_, initialValue_);
-        
-        uint256 lockId = lockGenerator.mintTo(_initialOwner);
-       	_spendLock[tokenId] = lockId;
+       super._mint(owner_, tokenId, slot_, value_);
+
+         TokenData memory tokenData = TokenData({
+            id: tokenId,
+            slot: slot_,
+            balance: value_,
+            owner: owner_,
+            approved: address(0),
+            valueApprovals: new address[](0)
+        });
+
+        _addTokenToAllTokensEnum(tokenData);
+        _addTokenToOwnerEnum(owner_, tokenId);
+    
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(tokenId, uuid_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(tokenId, token_description_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(tokenId, token_image_);
+    	
+        emit MintServiceToken(tokenId, slot_, value_);
 
 	    return tokenId;
   	}
   
   
+  
+  function setApprovalForAll(address operator_, bool approved_) public virtual override {
+        super.setApprovalForAll(operator_, approved_);
+        /** CHECK THAT APPROVAL WAS SUCCESSFUL **/
+        _addressData[_msgSender()].approvals[operator_] = approved_;
+    }
 
     
     
@@ -178,15 +148,25 @@ contract Service is solv.ERC3525, Ownable {
         uint256 fromTokenId_,
         address to_,
         uint256 value_
-    ) public payable override returns (uint256) {
-        uint256 newTokenId = solv.ERC3525.transferFrom(fromTokenId_, to_, value_);
-  
-        uint256 lockId = lockGenerator.mintTo(to_);
-       	_spendLock[newTokenId] = lockId;
-       	emit MintServiceToken(newTokenId);
-       	
-       	
-       	return newTokenId;
+    ) public payable virtual override returns (uint256) {
+        super.transferFrom(fromTokenId_, to_, value_);
+        address fromOwnerAddress = _allTokens[_allTokensIndex[fromTokenId_]].owner;
+    }
+
+    function transferFrom(
+        uint256 fromTokenId_,
+        uint256 toTokenId_,
+        uint256 value_
+    ) public payable virtual override {
+        super.transferFrom(fromTokenId_, toTokenId_, value_);
+    }
+
+    function transferFrom(
+        address from_,
+        address to_,
+        uint256 tokenId_
+    ) public payable virtual override {
+        super.transferFrom( from_, to_, tokenId_);
     }
     
     
@@ -194,41 +174,98 @@ contract Service is solv.ERC3525, Ownable {
     
     
     
-    function burn(uint256 tokenId_) public {
+    
+    function _addTokenToOwnerEnum(address to_, uint256 tokenId_) private {
+        _allTokens[_allTokensIndex[tokenId_]].owner = to_;
+        _addressData[to_].ownedTokensIndex[tokenId_] = _addressData[to_].ownedTokens.length;
+        _addressData[to_].ownedTokens.push(tokenId_);
+    }
+
+
+
+
+
+    function _removeTokenFromOwnerEnum(address from_, uint256 tokenId_) private {
+        _allTokens[_allTokensIndex[tokenId_]].owner = address(0);
+
+        AddressData storage ownerData = _addressData[from_];
+        uint256 lastTokenIndex = ownerData.ownedTokens.length - 1;
+        uint256 lastTokenId = ownerData.ownedTokens[lastTokenIndex];
+        uint256 tokenIndex = ownerData.ownedTokensIndex[tokenId_];
+
+        ownerData.ownedTokens[tokenIndex] = lastTokenId;
+        ownerData.ownedTokensIndex[lastTokenId] = tokenIndex;
+
+        delete ownerData.ownedTokensIndex[tokenId_];
+        ownerData.ownedTokens.pop();
+    }
+
+
+
+    function _addTokenToAllTokensEnum(TokenData memory tokenData_) private {
+        _allTokensIndex[tokenData_.id] = _allTokens.length;
+        _allTokens.push(tokenData_);
+    }
+    
+    
+
+    function _removeTokenFromAllTokensEnum(uint256 tokenId_) private {
+        // To prevent a gap in the tokens array, we store the last token in the index of the token to delete, and
+        // then delete the last slot (swap and pop).
+
+        uint256 lastTokenIndex = _allTokens.length - 1;
+        uint256 tokenIndex = _allTokensIndex[tokenId_];
+
+        // When the token to delete is the last token, the swap operation is unnecessary. However, since this occurs so
+        // rarely (when the last minted token is burnt) that we still do the swap here to avoid the gas cost of adding
+        // an 'if' statement (like in _removeTokenFromOwnerEnumeration)
+        TokenData memory lastTokenData = _allTokens[lastTokenIndex];
+
+        _allTokens[tokenIndex] = lastTokenData; // Move the last token to the slot of the to-delete token
+        _allTokensIndex[lastTokenData.id] = tokenIndex; // Update the moved token's index
+
+        // This also deletes the contents at the last position of the array
+        delete _allTokensIndex[tokenId_];
+        _allTokens.pop();
+    }
+    
+
+    /*function burn(uint256 tokenId_) public {
         require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC3525: transfer caller is not owner nor approved");
        	_burn(tokenId_);
-      	uint256 locId = _spendLock[tokenId_];
-      	lockGenerator.burn(locId);
+      	//uint256 locId = _spendLock[tokenId_];
+      	
+      	/*lockGenerator.burn(locId);
       	delete _spendLock[tokenId_];
-    }
+      	* 
+      	*
+    }*/
     
     
-    function ownedTokens(address userAddr_, uint256 index_) public view returns (uint256) {
+    /*function ownedTokens(address userAddr_, uint256 index_) public view returns (uint256) {
         require(userAddr_ != address(0), "ERC3525: cannot get data for 0 address");
         return super.tokenOfOwnerByIndex(userAddr_, index_); //[userAddr_].ownedTokens.length;
 
         
-    }
+    }*/
     
 
-    
-    function getLockId(uint256 tokenId_) public view returns (uint256) {
+    /*function getLockId(uint256 tokenId_) public view returns (uint256) {
         
         uint256 lid = _spendLock[tokenId_];
         return lid;
-    }
+    }*/
     
 
     
-    function lockOwner(uint256 lockId_) public view returns (address){
+    /*function lockOwner(uint256 lockId_) public view returns (address){
         return lockGenerator.ownerOf(lockId_);
     }
+    * 
+    */
     
     
-    function tokenOwner(uint256 tokenId_) public view returns (address){
-        return ownerOf(tokenId_);
-    }
-    
+
     
     
     function tokenTransfer(
@@ -238,24 +275,19 @@ contract Service is solv.ERC3525, Ownable {
     ) public payable {
         // ERC721: transfer to non ERC721Receiver implementer
         require(super._isApprovedOrOwner(_msgSender(), tokenId_), "ERC3525: transfer caller is not owner nor approved");
-        uint256 lockId = _spendLock[tokenId_];
-        address lockHolder = lockOwner(lockId);
-        require(lockHolder == from_, "ERC3525: cannot transfer a token without a lock");
+        //uint256 lockId = _spendLock[tokenId_];
+        //address lockHolder = lockOwner(lockId);
+        //require(lockHolder == from_, "ERC3525: cannot transfer a token without a lock");
         
         super.safeTransferFrom(from_, to_, tokenId_);
         
-        if(from_ != address(this)){
+        /*if(from_ != address(this)){
             lockGenerator.safeTransferFrom(from_, to_, lockId);
-        }
-    }
-
-
-    function lockMsgSender() public view returns (address) {
-        return lockGenerator.msgSender();
+        }*
+        * 
+        */
     }
     
-    
- 
 
 
 }

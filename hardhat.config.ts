@@ -1,8 +1,17 @@
 // import dotenv from 'dotenv';
-import { HardhatUserConfig } from "hardhat/config";
-//import type { HardhatUserConfig } from "hardhat/types";
+import { config as dotEnvConfig } from "dotenv";
+dotEnvConfig();
+//import { HardhatUserConfig } from "hardhat/config";
+import type { HardhatUserConfig } from "hardhat/types";
 import "@nomicfoundation/hardhat-toolbox";
+import "./tasks/DeployService.js";
+import "./tasks/DeployWUSDC.js";
+import "./tasks/DeployTestUSDC.js";
+import "./tasks/DeploySlotRegistry.js";
+import "./tasks/DeployTokenSwap.js";
 
+
+const privatekey = process.env.MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY;
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -14,14 +23,20 @@ const config: HardhatUserConfig = {
 		  }
 	   }
   },
-  defaultNetwork: "hardhat",
+  //defaultNetwork: "hardhat",
+  defaultNetwork: "polygon_mumbai",
   networks: {
-	  hardhat: {
-	    forking: {
-	      url: "https://eth-mainnet.alchemyapi.io/v2/l2oG-ebJu5YPgFRjAU8EemqamliNp1p6",
-	      blockNumber: 14390000
-	    }
-	 }
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
+    polygon_mumbai: {
+		url: "https://rpc-mumbai.maticvigil.com/",
+		accounts: [ privatekey ],
+		allowUnlimitedContractSize: true
+	}
+  },
+  etherscan: {
+	  apiKey: process.env.POLYGONSCAN_API_KEY
   }
 };
 
