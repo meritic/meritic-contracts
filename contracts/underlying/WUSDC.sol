@@ -67,7 +67,7 @@ contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), IValue {
     
 	
 
-    function _mint(uint256 amount, address to) private returns (bool){
+    function _mint(uint256 amount, address to) private {
         usdc.approve(to, amount);
    		usdc.transfer(to, amount); 
    		super._mint(to, amount); /// mint WUSD

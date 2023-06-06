@@ -9,12 +9,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@solvprotocol/erc-3525/ERC3525.sol";
 import "./ServiceMetadataDescriptor.sol";
 
-/*
- * import "@solvprotocol/erc-3525/ERC3525.sol" as solv;
-import "@solvprotocol/erc-3525/ERC3525.sol" as solv;
- 
- * 
- */
 
 
 import "./underlying/WUSDC.sol";
@@ -22,14 +16,6 @@ import "./SlotRegistry.sol";
 import "./extensions/IValue.sol";
 
 
-
-/* 
-contract OwnableDelegateProxy { }
-
-contract ProxyRegistry {
-  mapping(address => OwnableDelegateProxy) public proxies;
-}
-*/
 
 
 
@@ -43,22 +29,17 @@ contract Service is ERC3525, Ownable {
     address private _serviceAddress;
     string private _baseuri;
     
-
-    
-    //mapping (uint256 => uint256) private _spendLock;
     
     event MintServiceToken(uint256  tokenId, uint256 slot, uint256 value);
 	event MetadataDescriptor(address  contractAddress);
 
-	IValue private _valueToken;
+	//IValue private _valueToken;
 	
-	//address constant private USDCPolygonMumbai = 0x0fa8781a83e46826621b3bc094ea2a0212e71b23;
-	//address constant private ETHPolygonMumbai =		0xBA47cF08bDFbA09E7732c0e48E12a11Cd1536bcd;
+
 	
-	
-	TokenData[] private _allTokens;
-    mapping(uint256 => uint256) private _allTokensIndex;
-    mapping(address => AddressData) private _addressData;
+	TokenData[] internal _allTokens;
+    mapping(uint256 => uint256) internal _allTokensIndex;
+    mapping(address => AddressData) internal _addressData;
 
     constructor(address serviceAddress_,
         		address slotRegistry_,
@@ -67,10 +48,10 @@ contract Service is ERC3525, Ownable {
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		address valueTokenContractAddress_,
+        		//address valueTokenContractAddress_,
         		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
         		    
-        		string memory valueToken_ = "USDC";
+        		//string memory valueToken_ = "USDC";
 
         _serviceAddress = serviceAddress_;
   		_baseuri = baseuri_;
@@ -78,9 +59,9 @@ contract Service is ERC3525, Ownable {
         metadataDescriptor = new ServiceMetadataDescriptor(_baseuri, contractDescription_, contractImage_, slotRegistry_);
         
         
-        if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
-            _valueToken = WUSDC(valueTokenContractAddress_); 
-        }
+        //if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
+        //    _valueToken = WUSDC(valueTokenContractAddress_); 
+        //}
         
         emit MetadataDescriptor(address(metadataDescriptor));
     }
@@ -92,7 +73,7 @@ contract Service is ERC3525, Ownable {
     }
     
     
- 	function _setBaseURI(string memory uri_) external virtual returns (string memory) {
+ 	function _setBaseURI(string memory uri_) external virtual {
         _baseuri = uri_;
         ServiceMetadataDescriptor(address(metadataDescriptor)).setBaseURI(uri_);
     }
@@ -105,14 +86,15 @@ contract Service is ERC3525, Ownable {
         			string memory uuid_,
         			string memory token_description_,
         			string memory token_image_
-    ) public onlyOwner returns (uint256) {
- 
-        uint256 tokenId = _createOriginalTokenId();
-       _valueToken.mint(value_, address(this));
+    ) public virtual onlyOwner returns (uint256) {
         
-       super._mint(owner_, tokenId, slot_, value_);
-
-         TokenData memory tokenData = TokenData({
+        uint256 tokenId = _createOriginalTokenId();
+        
+        //_valueToken.mint(value_, address(this));
+        
+        super._mint(owner_, tokenId, slot_, value_);
+        
+        TokenData memory tokenData = TokenData({
             id: tokenId,
             slot: slot_,
             balance: value_,
@@ -149,8 +131,7 @@ contract Service is ERC3525, Ownable {
         address to_,
         uint256 value_
     ) public payable virtual override returns (uint256) {
-        super.transferFrom(fromTokenId_, to_, value_);
-        address fromOwnerAddress = _allTokens[_allTokensIndex[fromTokenId_]].owner;
+        return super.transferFrom(fromTokenId_, to_, value_);
     }
 
     function transferFrom(
@@ -242,38 +223,15 @@ contract Service is ERC3525, Ownable {
     }*/
     
     
-    /*function ownedTokens(address userAddr_, uint256 index_) public view returns (uint256) {
-        require(userAddr_ != address(0), "ERC3525: cannot get data for 0 address");
-        return super.tokenOfOwnerByIndex(userAddr_, index_); //[userAddr_].ownedTokens.length;
 
-        
-    }*/
-    
-
-    /*function getLockId(uint256 tokenId_) public view returns (uint256) {
-        
-        uint256 lid = _spendLock[tokenId_];
-        return lid;
-    }*/
-    
-
-    
-    /*function lockOwner(uint256 lockId_) public view returns (address){
-        return lockGenerator.ownerOf(lockId_);
-    }
-    * 
-    */
-    
-    
 
     
     
-    function tokenTransfer(
+   /* function tokenTransfer(
         address from_,
         address to_,
         uint256 tokenId_
-    ) public payable {
-        // ERC721: transfer to non ERC721Receiver implementer
+    ) public virtual payable {
         require(super._isApprovedOrOwner(_msgSender(), tokenId_), "ERC3525: transfer caller is not owner nor approved");
         //uint256 lockId = _spendLock[tokenId_];
         //address lockHolder = lockOwner(lockId);
@@ -281,12 +239,8 @@ contract Service is ERC3525, Ownable {
         
         super.safeTransferFrom(from_, to_, tokenId_);
         
-        /*if(from_ != address(this)){
-            lockGenerator.safeTransferFrom(from_, to_, lockId);
-        }*
-        * 
-        */
-    }
+        
+    }*/
     
 
 
