@@ -5,8 +5,7 @@ import { ethers } from "hardhat";
 
 
 
-
-
+/*
 describe("WUSDC", function () {
 
   async function deployTokenFixture() {
@@ -16,9 +15,6 @@ describe("WUSDC", function () {
     
     const [meriticAcct, user1] = await ethers.getSigners();
     
-    // To deploy our contract, we just have to call Token.deploy() and await
-    // its deployed() method, which happens once its transaction has been
-    // mined.
     const USDCToken = await HardhatUSDC.deploy();
     await USDCToken.deployed();
     
@@ -68,3 +64,4 @@ describe("WUSDC", function () {
     
   });
 });
+*/

@@ -49,7 +49,13 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
 
     
+    function getTokenUUID(uint256 tokenId_) view external returns (string memory){
+        return tokenUUID[tokenId_];
+    }
     
+    function getTokenDescription(uint256 tokenId_) view external returns (string memory){
+        return tokenDesc[tokenId_];
+    }
     
     function _contractDescription() internal view virtual override returns (string memory) {
         return _contractDesc; 
@@ -97,6 +103,11 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
     function setTokenImage(uint256 tokenId_, string memory imgname_) external {
         tokenImage[tokenId_] = imgname_;
+    }
+    
+    
+    function getTokenImage(uint256 tokenId_) view external returns (string memory){
+        return tokenImage[tokenId_];
     }
     
     

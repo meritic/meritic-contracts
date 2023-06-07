@@ -3,6 +3,7 @@ import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 //import { HardhatUserConfig } from "hardhat/config";
 import type { HardhatUserConfig } from "hardhat/types";
+import "@nomiclabs/hardhat-truffle5";
 import "@nomicfoundation/hardhat-toolbox";
 import "./tasks/DeployService.js";
 import "./tasks/DeployWUSDC.js";
@@ -23,8 +24,8 @@ const config: HardhatUserConfig = {
 		  }
 	   }
   },
-  //defaultNetwork: "hardhat",
-  defaultNetwork: "polygon_mumbai",
+  defaultNetwork: "hardhat",
+  //defaultNetwork: "polygon_mumbai",
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,

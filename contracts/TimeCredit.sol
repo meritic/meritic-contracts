@@ -134,19 +134,21 @@ contract TimeCredit is Service {
 	
 	function balanceOf(uint256 tokenId_) public view virtual override returns (uint256) {
         _requireMinted(tokenId_);
-
+		
+		uint256 balance = super.balanceOf(tokenId_);
+		
         if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('seconds'))){
-            return _allTokens[_allTokensIndex[tokenId_]].balance;
+            return balance;
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('minutes'))){
-            return (_allTokens[_allTokensIndex[tokenId_]].balance / (10 ** _decimals)) / 60 * (10 ** _decimals);
+            return (balance / (10 ** _decimals)) / 60 * (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('hours'))){
-            return (_allTokens[_allTokensIndex[tokenId_]].balance / (10 ** _decimals)) / (60 * 60) * (10 ** _decimals);
+            return (balance / (10 ** _decimals)) / (60 * 60) * (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('days'))){
-            return (_allTokens[_allTokensIndex[tokenId_]].balance / (10 ** _decimals)) / (60 * 60 * 24) * (10 ** _decimals);
+            return (balance / (10 ** _decimals)) / (60 * 60 * 24) * (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('months'))){
-            return (_allTokens[_allTokensIndex[tokenId_]].balance / (10 ** _decimals)) / (60 * 60 * 24 * 304167) * (10 ** _decimals) / 10000;
+            return (balance / (10 ** _decimals)) / (60 * 60 * 24 * 304167) * (10 ** _decimals) / 10000;
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('years'))){
-			return (_allTokens[_allTokensIndex[tokenId_]].balance / (10 ** _decimals)) / (60 * 60 * 24 * 304167 * 12) * (10 ** _decimals) / 10000;
+			return (balance / (10 ** _decimals)) / (60 * 60 * 24 * 304167 * 12) * (10 ** _decimals) / 10000;
 		}else{
 		    return 0;
 		}

@@ -66,11 +66,11 @@ contract SpendCredit is Service {
   
   
   
-  function setApprovalForAll(address operator_, bool approved_) public virtual override {
+   /*function setApprovalForAll(address operator_, bool approved_) public virtual override {
         super.setApprovalForAll(operator_, approved_);
-        /** CHECK THAT APPROVAL WAS SUCCESSFUL **/
+        
         _addressData[_msgSender()].approvals[operator_] = approved_;
-    }
+    }*/
 
     
     
