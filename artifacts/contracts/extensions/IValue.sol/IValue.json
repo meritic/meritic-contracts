@@ -6,14 +6,14 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        },
-        {
           "internalType": "address",
           "name": "to",
           "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
       "name": "mint",
@@ -24,14 +24,14 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        },
-        {
           "internalType": "address",
           "name": "to",
           "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
       "name": "redeem",
@@ -43,23 +43,24 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "from_",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "to_",
+          "name": "to",
           "type": "address"
         },
         {
           "internalType": "uint256",
-          "name": "value_",
+          "name": "amount",
           "type": "uint256"
         }
       ],
       "name": "transfer",
-      "outputs": [],
-      "stateMutability": "payable",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
       "type": "function"
     }
   ],

@@ -2,11 +2,14 @@
 const { task }  = require('hardhat/config');
 
 
+const MERITIC_TEST_MKT_SERVICE_ADDRESS = process.env.MERITIC_TEST_MKT_SERVICE_ADDRESS;
+const UNDERLYING_TEST_USDC = process.env.UNDERLYING_TEST_USDC;
+
 task("DeployWUSDC", "Deploy WUSDC contract")
   .setAction(async (args) => {
 
     const WUSDC = await ethers.getContractFactory("WUSDC");
-    const wusdc = await WUSDC.deploy();	
+    const wusdc = await WUSDC.deploy(UNDERLYING_TEST_USDC, MERITIC_TEST_MKT_SERVICE_ADDRESS);	
     await wusdc.deployed();
     const hashOfTx = wusdc.deployTransaction.hash;	
     

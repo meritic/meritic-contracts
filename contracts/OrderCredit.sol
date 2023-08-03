@@ -17,14 +17,20 @@ contract OrderCredit is Service {
 
 	uint256[] private _tokenQ; 
 	
-    constructor(address serviceAddress_,
+	
+
+        		
+    constructor(address revenueAddress_,
+        		address adminAddress_,
         		address slotRegistry_,
+        		address mktAdmin_,
+        		uint256 defaultSlot_,
         		string memory name_, 
         		string memory symbol_, 
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		uint8 decimals_) Service(serviceAddress_, slotRegistry_, name_, symbol_, baseuri_, contractDescription_, contractImage_,  decimals_) {
+        		uint8 decimals_) Service(adminAddress_, mktAdmin_, slotRegistry_, defaultSlot_, name_, symbol_, baseuri_, contractDescription_, contractImage_, 'ordered', decimals_) {
 
     }
     
@@ -74,15 +80,7 @@ contract OrderCredit is Service {
   	}
   	
   	
-  	
-  	/*function setApprovalForAll(address operator_, bool approved_) public virtual override {
-        super.setApprovalForAll(operator_, approved_);
-    
-        _addressData[_msgSender()].approvals[operator_] = approved_;
-    }*/
 
-    
-    
     
     function transferFrom(
         uint256 fromTokenId_,

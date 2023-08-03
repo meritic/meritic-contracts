@@ -4,11 +4,15 @@ dotEnvConfig();
 //import { HardhatUserConfig } from "hardhat/config";
 import type { HardhatUserConfig } from "hardhat/types";
 import "@nomiclabs/hardhat-truffle5";
+import "@nomiclabs/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
+import "./tasks/DeploySlotRegistry.js";
+
 import "./tasks/DeployService.js";
+import "./tasks/DeploySlotRegistry.js";
+import "./tasks/DeployTimeCredit.js";
 import "./tasks/DeployWUSDC.js";
 import "./tasks/DeployTestUSDC.js";
-import "./tasks/DeploySlotRegistry.js";
 import "./tasks/DeployTokenSwap.js";
 
 
@@ -21,17 +25,19 @@ const config: HardhatUserConfig = {
 		  optimizer: {
 			  enabled: true,
 			  runs: 200
-		  }
+		  },
+		  viaIR: true,
 	   }
   },
-  defaultNetwork: "hardhat",
+  defaultNetwork: "hardhat", 
   //defaultNetwork: "polygon_mumbai",
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
     polygon_mumbai: {
-		url: "https://rpc-mumbai.maticvigil.com/",
+		chainId: 80001,
+		url: "https://rpc-mumbai.maticvigil.com",
 		accounts: [ privatekey ],
 		allowUnlimitedContractSize: true
 	}

@@ -18,6 +18,9 @@ const NETWORK_URL = `https://rpc-mumbai.maticvigil.com/v1`;
 //var signer =  provider.getSigner(wallet.address);
 
 
+
+
+
 task("DeployService", "Deploy Service contract")
   .addPositionalParam("serviceAddress")
   .addPositionalParam("name")

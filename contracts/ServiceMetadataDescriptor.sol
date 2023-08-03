@@ -20,7 +20,7 @@ import "./SlotRegistry.sol";
 contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
     
-  
+  using Strings for uint256;
     
     SlotRegistry sr;
     
@@ -42,6 +42,65 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
 		contractImage = contractImage_;
 		sr = SlotRegistry(slotRegistry_);
     }
+    
+    
+    function baseURI() external view returns (string memory) {
+        return _baseURI;
+    }
+    
+    
+    
+	function constructTokenURI2(uint256 tokenId_, uint256 balance_) external view returns (string memory) {
+        IERC3525Metadata erc3525 = IERC3525Metadata(msg.sender);
+        // erc3525.balanceOf(tokenId_).toString(),
+        return 
+            string(
+                abi.encodePacked(
+                    /* solhint-disable */
+                    '{"name":"',
+                    _tokenName(tokenId_),
+                    '","description":"',
+                    _tokenDescription(tokenId_),
+                    '","image":"',
+                    _tokenImage(tokenId_),
+                    '","balance":"',
+                    balance_.toString(),
+                    '","slot":"',
+                    erc3525.slotOf(tokenId_).toString(),
+                    '","properties":',
+                    _tokenProperties(tokenId_),
+                    "}"
+                    /* solhint-enable */
+                )
+            );
+    }
+    
+    
+    
+    
+    function constructContractURI2() external view returns (string memory) {
+        IERC3525Metadata erc3525 = IERC3525Metadata(msg.sender);
+        return 
+            string(
+                    /* solhint-disable */
+      
+                    abi.encodePacked(
+                        '{"name":"', 
+                        erc3525.name(),
+                        '","description":"',
+                        _contractDescription(),
+                        '","image":"',
+                        _contractImage(),
+                        '","valueDecimals":"', 
+                        uint256(erc3525.valueDecimals()).toString(),
+                        '"}'
+                    )
+                   
+                    /* solhint-enable */
+                
+            );
+    }
+    
     
     function setTokenUUID(uint256 tokenId_, string memory uuid_) external {
         tokenUUID[tokenId_] = uuid_;
@@ -120,8 +179,9 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
     
     function _tokenProperties(uint256 tokenId_) internal view virtual override returns (string memory) {
-        return string(abi.encodePacked("{properties_uri", _baseURI, "contract/", Strings.toHexString(msg.sender), 
-        				"/token/", tokenUUID[tokenId_], "/properties.json", "}"));
+        return string(abi.encodePacked("{}"));
+        //return string(abi.encodePacked("{properties_uri", _baseURI, "contract/", Strings.toHexString(msg.sender), 
+        //				"/token/", tokenUUID[tokenId_], "/properties.json", "}"));
     }
     
     
