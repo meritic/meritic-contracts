@@ -18,7 +18,7 @@ contract TimeCredit is Service {
 	    uint256 expiration;
 	}
 	//uint256 private _defaultSlot;
-	mapping(uint256 => ValidPeriod) internal token_period;
+	mapping(uint256 => ValidPeriod) internal tokenPeriod;
 	mapping(uint256 => uint256) private _timeValueRate;
 	mapping(uint256 => bool) private _transferAllowed;
 	mapping(uint256 => uint256) private _minAllowedValueTransferSecs;
@@ -26,7 +26,7 @@ contract TimeCredit is Service {
 	
 	
 	address private _revenueAcct;
-	IValue private _valueContract;
+	Underlying private _valueContract;
 	
 	// bool _transferAllowed;
 	// uint256 _minAllowedValueTransferSecs;
@@ -70,64 +70,49 @@ contract TimeCredit is Service {
 	
 	
 	function mintTime(address owner_, 
-        			uint256 slot_, 
-        			uint256 time_value_,
-        			uint256 paid_value,
-        			uint256 valid_start,
-        			uint256 valid_expiration,
+        			uint256 slotId_, 
+        			uint256 timeValue_,
+        			uint256 paidValue_,
+        			uint256 validStart_,
+        			uint256 validExpiration_,
         			string memory uuid_,
-        			string memory token_description_,
-        			string memory token_image_,
+        			string memory tokenDescription_,
+        			string memory tokenImage_,
         			bool transfersAllowed_,
         			uint256 minAllowedValueTransfer_
     ) public virtual returns (uint256) {
         
         			
-        uint256 time_value_seconds;
+        uint256 timeValueSeconds;
         
-        
-        /*if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('seconds'))){
-            time_value_seconds = time_value_ / (10 ** _decimals);
-        }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('minutes'))){
-            time_value_seconds = time_value_ * 60 / (10 ** _decimals);
-        }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('hours'))){
-            time_value_seconds = time_value_ * 60 * 60 / (10 ** _decimals);
-        }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('days'))){
-            time_value_seconds = time_value_ * 24 * 60 * 60 / (10 ** _decimals);
-        }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('weeks'))){
-            time_value_seconds = time_value_ * 7 * 24 * 60 * 60 / (10 ** _decimals);
-        }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('months'))){
-            time_value_seconds = time_value_ * 60 * 60 * 24 * 304167 / (10 ** _decimals) / 10000;
-        }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('years'))){
-			time_value_seconds = time_value_ * (60 * 60 * 24 * 304167 * 12) / (10 ** _decimals) / 10000;
-		}*/
+       
 		
-		time_value_seconds = toSeconds(time_value_);
+		timeValueSeconds = toSeconds(timeValue_);
 		
- 		require(valid_start <= valid_expiration, "TimeCredit: valid start time must be less than expiration time");
- 		require(block.timestamp <= valid_expiration, "TimeCredit: cannot mint an expired token");
+ 		require(validStart_ <= validExpiration_, "TimeCredit: valid start time must be less than expiration time");
+ 		require(block.timestamp <= validExpiration_, "TimeCredit: cannot mint an expired token");
  		require(
- 		    (block.timestamp <= valid_start) && (time_value_seconds <= (valid_expiration - valid_start))
- 		    		|| (block.timestamp > valid_start && block.timestamp < valid_expiration) && (time_value_seconds <= (valid_expiration - block.timestamp)), 
+ 		    (block.timestamp <= validStart_) && (timeValueSeconds <= (validExpiration_ - validStart_))
+ 		    		|| (block.timestamp > validStart_ && block.timestamp < validExpiration_) && (timeValueSeconds <= (validExpiration_ - block.timestamp)), 
  		    			"TimeCredit: time value cannot exceed valid period"
  		);
  		
-		_valueContract.mint(address(this), paid_value);
+		_valueContract.mint(address(this), slotId_, paidValue_);
 		
-		uint256 tVRate = (paid_value * (10 ** _decimals) / time_value_seconds);
+		uint256 tVRate = (paidValue_ * (10 ** _decimals) / timeValueSeconds);
 		uint256 tokenId;
 		
-		if(slot_ == _defaultSlot){
-		    tokenId = super.mint(owner_, slot_, time_value_seconds, uuid_, token_description_, token_image_);
+		if(slotId_ == _defaultSlot){
+		    tokenId = super.mint(owner_, slotId_, timeValueSeconds, uuid_, tokenDescription_, tokenImage_);
 		}else{
-		    uint256 regTokenId = Service.networkMintWithTVRate(owner_, slot_, time_value_seconds, tVRate, uuid_, token_description_, token_image_);
+		    uint256 regTokenId = Service.networkMintWithTVRate(owner_, slotId_, timeValueSeconds, tVRate, uuid_, tokenDescription_, tokenImage_);
            	tokenId = ERC3525._createOriginalTokenId();
            	networkTokenId[tokenId] = regTokenId;
            
 		}
 	
         			
- 		emit MintTimeToken(time_value_seconds, time_value_);
+ 		emit MintTimeToken(timeValueSeconds, timeValue_);
  		
         _transferAllowed[tokenId] = transfersAllowed_;
         _minAllowedValueTransferSecs[tokenId] = toSeconds(minAllowedValueTransfer_);
@@ -136,44 +121,44 @@ contract TimeCredit is Service {
 
         
         ValidPeriod memory period = ValidPeriod({
-            start: valid_start,
-			expiration: valid_expiration
+            start: validStart_,
+			expiration: validExpiration_
         });
   
-  		token_period[tokenId] = period;
+  		tokenPeriod[tokenId] = period;
  		
 	    return tokenId;
   	}
   	
   	
   	
-  	function toSeconds(uint256 time_value_) private view returns (uint256){
-  	    uint256 time_value_seconds;
+  	function toSeconds(uint256 timeValue_) private view returns (uint256){
+  	    uint256 timeValueSeconds;
         
         
         if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('seconds'))){
-            time_value_seconds = time_value_ / (10 ** _decimals);
+            timeValueSeconds = timeValue_ / (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('minutes'))){
-            time_value_seconds = time_value_ * 60 / (10 ** _decimals);
+            timeValueSeconds = timeValue_ * 60 / (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('hours'))){
-            time_value_seconds = time_value_ / (10 ** _decimals) * 60 * 60 ;
+            timeValueSeconds = timeValue_ / (10 ** _decimals) * 60 * 60 ;
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('days'))){
-            time_value_seconds = time_value_ * 24 * 60 * 60 / (10 ** _decimals);
+            timeValueSeconds = timeValue_ * 24 * 60 * 60 / (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('weeks'))){
-            time_value_seconds = time_value_ * 7 * 24 * 60 * 60 / (10 ** _decimals);
+            timeValueSeconds = timeValue_ * 7 * 24 * 60 * 60 / (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('months'))){
-            time_value_seconds = time_value_ * 60 * 60 * 24 * 30 / (10 ** _decimals);
+            timeValueSeconds = timeValue_ * 60 * 60 * 24 * 30 / (10 ** _decimals);
         }else if(keccak256(bytes(_dispTimeUnit)) == keccak256(bytes('years'))){
-			time_value_seconds = time_value_ * (60 * 60 * 24 * 30 * 12) / (10 ** _decimals);
+			timeValueSeconds = timeValue_ * (60 * 60 * 24 * 30 * 12) / (10 ** _decimals);
 		}
 		
-		return time_value_seconds;
+		return timeValueSeconds;
   	}
   	
   	
   	function isValid(uint256 tokenId_) public view virtual returns (bool) {
   	    
-		return (block.timestamp >= token_period[tokenId_].start) && (block.timestamp < token_period[tokenId_].expiration);    
+		return (block.timestamp >= tokenPeriod[tokenId_].start) && (block.timestamp < tokenPeriod[tokenId_].expiration);    
   	}
   	
   	
@@ -201,7 +186,7 @@ contract TimeCredit is Service {
         uint256 value = toSeconds(value_);
         require(_transferAllowed[fromTokenId_], "TimeCredit: transfers are not allowed");
         require(value >= _minAllowedValueTransferSecs[fromTokenId_], "TimeCredit: amount being transfered is less than minimum transferable value");
-        require(block.timestamp < token_period[fromTokenId_].expiration, "TimeCredit: cannot transfer from an expired token");
+        require(block.timestamp < tokenPeriod[fromTokenId_].expiration, "TimeCredit: cannot transfer from an expired token");
         
         return super.transferFrom(fromTokenId_, to_, value);
     }
@@ -222,9 +207,9 @@ contract TimeCredit is Service {
 		require(_transferAllowed[fromTokenId_], "TimeCredit: transfers are not allowed");
 		require(valueSeconds >= _minAllowedValueTransferSecs[fromTokenId_], "TimeCredit: amount being transfered is less than minimum transferable value");
 
-        require(block.timestamp < token_period[fromTokenId_].expiration, "TimeCredit: cannot transfer time from an expired token");
-        require(block.timestamp <  token_period[toTokenId_].expiration, "TimeCredit: cannot transfer time into an expired token");
-        require(block.timestamp + ERC3525.balanceOf(toTokenId_) <= token_period[toTokenId_].expiration, "TimeCredit: time value of token receiving transfer exceeds time till expiration");
+        require(block.timestamp < tokenPeriod[fromTokenId_].expiration, "TimeCredit: cannot transfer time from an expired token");
+        require(block.timestamp <  tokenPeriod[toTokenId_].expiration, "TimeCredit: cannot transfer time into an expired token");
+        require(block.timestamp + ERC3525.balanceOf(toTokenId_) <= tokenPeriod[toTokenId_].expiration, "TimeCredit: time value of token receiving transfer exceeds time till expiration");
 		
 		if(isContractToken(fromTokenId_) && isContractToken(toTokenId_)){
 		    
@@ -269,7 +254,7 @@ contract TimeCredit is Service {
     
   	
   	
-  	function redeem(uint256 tokenId_, uint256 valueSeconds_) external {
+  	function redeem(uint256 tokenId_, uint256 slotId_, uint256 valueSeconds_) external {
 	    
 	   require(ERC3525.ownerOf(tokenId_) == msg.sender || hasRole(MKT_ARBITRATOR_ROLE, msg.sender), "Sender is not authorized to redeem.");
 	   uint256 uValue;
@@ -285,7 +270,7 @@ contract TimeCredit is Service {
 	       }
 	   }
 	   
-	   _valueContract.redeem(_revenueAcct, uValue);
+	   _valueContract.redeem(_revenueAcct, slotId_, uValue);
 	   super._burnValue(tokenId_, valueSeconds_);
 	}
 	
@@ -295,9 +280,9 @@ contract TimeCredit is Service {
 	
 	function addTime(uint256 tokenId_, uint256 valueSeconds_) external {
 
-	    require(block.timestamp < token_period[tokenId_].expiration, "TimeCredit: cannot add time to an expired token");
-	    if(block.timestamp + balanceOf(tokenId_) + valueSeconds_ > token_period[tokenId_].expiration){
-	        token_period[tokenId_].expiration = block.timestamp + balanceOf(tokenId_) + valueSeconds_;
+	    require(block.timestamp < tokenPeriod[tokenId_].expiration, "TimeCredit: cannot add time to an expired token");
+	    if(block.timestamp + balanceOf(tokenId_) + valueSeconds_ > tokenPeriod[tokenId_].expiration){
+	        tokenPeriod[tokenId_].expiration = block.timestamp + balanceOf(tokenId_) + valueSeconds_;
 	    }
 	    super._mintValue(tokenId_, valueSeconds_);
 	}

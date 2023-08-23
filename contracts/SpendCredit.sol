@@ -16,7 +16,7 @@ import "./Service.sol";
 contract SpendCredit is Service {
     
 
-	IValue private _valueContract;
+	Underlying private _valueContract;
 	uint256 _decimals;
 	address _revenueAcct;
 	uint256 _totalBalance;
@@ -90,7 +90,7 @@ contract SpendCredit is Service {
        
        uint256 tenKBasisPts = 10000;
        uint256 uValue = (tenKBasisPts - _tokenDiscount[tokenId]) * value_ / tenKBasisPts;
-       _valueContract.mint(address(this), uValue);
+       _valueContract.mint(address(this), slot_, uValue);
        
        
 	   return tokenId;
@@ -117,11 +117,11 @@ contract SpendCredit is Service {
   	
   	
   	
-	function redeem(uint256 tokenId_, uint256 value_) external {
+	function redeem(uint256 tokenId_, uint256 slotId_, uint256 value_) external {
 	    
 	   require(ERC3525.ownerOf(tokenId_) == msg.sender || hasRole(MKT_ARBITRATOR_ROLE, msg.sender), "Sender is not authorized to redeem.");
 	   uint256 uValue =  (10000 - _tokenDiscount[tokenId_]) * value_ / 10000;
-	   _valueContract.redeem(_revenueAcct, uValue);
+	   _valueContract.redeem(_revenueAcct, slotId_, uValue);
 	   _totalBalance -= value_;
 	   super._burnValue(tokenId_, value_);
 	}

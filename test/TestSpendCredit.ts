@@ -100,17 +100,17 @@ describe("SpendCredit", function () {
   	
   	describe("Mint WUSDC", function () {
 		  it("Mint WUSDC token without USDC - reverts with ERC20: transfer amount exceeds balance", async function () {
-			  const { spendContract, wusdcContract, meriticAcct, user1 } = await loadFixture(deployTokenFixture);
+			  const { spendContract, defaultSlot, wusdcContract, meriticAcct, user1 } = await loadFixture(deployTokenFixture);
 			  const amount = ethers.utils.parseUnits('10.0', decimals);
-			  await expect(wusdcContract.mint(meriticAcct.address, amount)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
+			  await expect(wusdcContract.mint(meriticAcct.address, defaultSlot, amount)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
 		  });
 		  
 		  
 		  
 		  it('Mint WUSDC amount that exceeds USDC balance - reverts with ERC20: transfer amount exceeds balance', async function () {
-			  const { usdcContract, wusdcContract, spendContract } = await loadFixture(deployTokenFixture);
+			  const { usdcContract, defaultSlot, wusdcContract, spendContract } = await loadFixture(deployTokenFixture);
 			  await usdcContract.mint(wusdcContract.address, ethers.utils.parseUnits('10.0', decimals));
-			  await expect(wusdcContract.mint(spendContract.address, ethers.utils.parseUnits('15.0', decimals))).to.be.revertedWith('ERC20: transfer amount exceeds balance')
+			  await expect(wusdcContract.mint(spendContract.address, defaultSlot, ethers.utils.parseUnits('15.0', decimals))).to.be.revertedWith('ERC20: transfer amount exceeds balance')
 
 		  });
 	});
@@ -126,12 +126,12 @@ describe("SpendCredit", function () {
 		  });
 		  
 		it("Transfer WUSDC from admin account", async function () {
-			  const { wusdcContract, usdcContract, spendContract, meriticAcct } = await loadFixture(deployTokenFixture);
+			  const { wusdcContract, defaultSlot, usdcContract, spendContract, meriticAcct } = await loadFixture(deployTokenFixture);
 			  
 			  await usdcContract.mint(wusdcContract.address, ethers.utils.parseUnits('30.0', decimals));
 			  
-			  await wusdcContract.mint(meriticAcct.address, ethers.utils.parseUnits('10.0', decimals));
-			  await wusdcContract.mint(spendContract.address, ethers.utils.parseUnits('10.0', decimals));
+			  await wusdcContract.mint(meriticAcct.address, defaultSlot, ethers.utils.parseUnits('10.0', decimals));
+			  await wusdcContract.mint(spendContract.address, defaultSlot, ethers.utils.parseUnits('10.0', decimals));
 			  const amount = ethers.utils.parseUnits('10.0', decimals);
 			  await wusdcContract.connect(meriticAcct).transfer(spendContract.address, amount)
 			  const balance = await wusdcContract.balanceOf(spendContract.address);
@@ -140,12 +140,12 @@ describe("SpendCredit", function () {
 		  });
 		  
 		it("Transfer WUSDC from admin account check usdc balance euals wusdc", async function () {
-			  const { wusdcContract, usdcContract, spendContract, meriticAcct } = await loadFixture(deployTokenFixture);
+			  const { wusdcContract, defaultSlot, usdcContract, spendContract, meriticAcct } = await loadFixture(deployTokenFixture);
 			  
 			  await usdcContract.mint(wusdcContract.address, ethers.utils.parseUnits('30.0', decimals));
 			  
-			  await wusdcContract.mint(meriticAcct.address, ethers.utils.parseUnits('10.0', decimals));
-			  await wusdcContract.mint(spendContract.address, ethers.utils.parseUnits('10.0', decimals));
+			  await wusdcContract.mint(meriticAcct.address, defaultSlot, ethers.utils.parseUnits('10.0', decimals));
+			  await wusdcContract.mint(spendContract.address, defaultSlot, ethers.utils.parseUnits('10.0', decimals));
 			  const amount = ethers.utils.parseUnits('10.0', decimals);
 			  await wusdcContract.connect(meriticAcct).transfer(spendContract.address, amount)
 			  const usdcBalance = await usdcContract.balanceOf(spendContract.address);
@@ -158,35 +158,35 @@ describe("SpendCredit", function () {
 	
 	describe("Redeem WUSDC", function () {
 		it("Check redeem WUSDC burns WUSDC", async function () {
-			const { wusdcContract, usdcContract, spendContract, svcAdminAcct, meriticAcct } = await loadFixture(deployTokenFixture);
+			const { wusdcContract, defaultSlot, usdcContract, spendContract, svcAdminAcct, meriticAcct } = await loadFixture(deployTokenFixture);
 			
 			await usdcContract.mint(wusdcContract.address, ethers.utils.parseUnits('30.0', decimals));
-			await wusdcContract.mint(meriticAcct.address, ethers.utils.parseUnits('10.0', decimals));
+			await wusdcContract.mint(meriticAcct.address, defaultSlot, ethers.utils.parseUnits('10.0', decimals));
 			const amount = ethers.utils.parseUnits('10.0', decimals);
-			await wusdcContract.connect(meriticAcct).redeem(svcAdminAcct.address, amount); 
+			await wusdcContract.connect(meriticAcct).redeem(svcAdminAcct.address, defaultSlot, amount); 
 			const balance = await wusdcContract.balanceOf(meriticAcct.address);
 			expect(ethers.utils.formatUnits(balance, decimals)).to.equal('0.0');
 		});
 		
 		it("Check redeem WUSDC transfers equivalent USDC", async function () {
-			const { wusdcContract, usdcContract, spendContract, svcAdminAcct, meriticAcct } = await loadFixture(deployTokenFixture);
+			const { wusdcContract, defaultSlot, usdcContract, spendContract, svcAdminAcct, meriticAcct } = await loadFixture(deployTokenFixture);
 			
 			await usdcContract.mint(wusdcContract.address, ethers.utils.parseUnits('30.0', decimals));
-			await wusdcContract.mint(meriticAcct.address, ethers.utils.parseUnits('10.0', decimals));
+			await wusdcContract.mint(meriticAcct.address, defaultSlot, ethers.utils.parseUnits('10.0', decimals));
 			const amount = ethers.utils.parseUnits('10.0', decimals);
-			await wusdcContract.connect(meriticAcct).redeem(svcAdminAcct.address, amount); 
+			await wusdcContract.connect(meriticAcct).redeem(svcAdminAcct.address, defaultSlot, amount); 
 			const balance = await usdcContract.balanceOf(svcAdminAcct.address);
 			expect(ethers.utils.formatUnits(balance, decimals)).to.equal('10.0');
 		});
     
     
     	it("Check redeem WUSDC emits Redeem", async function () {
-			const { wusdcContract, usdcContract, spendContract, svcAdminAcct, meriticAcct } = await loadFixture(deployTokenFixture);
+			const { wusdcContract, defaultSlot, usdcContract, spendContract, svcAdminAcct, meriticAcct } = await loadFixture(deployTokenFixture);
 			
 			await usdcContract.mint(wusdcContract.address, ethers.utils.parseUnits('30.0', decimals));
-			await wusdcContract.mint(meriticAcct.address, ethers.utils.parseUnits('10.0', decimals));
+			await wusdcContract.mint(meriticAcct.address,defaultSlot,  ethers.utils.parseUnits('10.0', decimals));
 			const amount = ethers.utils.parseUnits('10.0', decimals);
-			const reedTx =  wusdcContract.connect(meriticAcct).redeem(svcAdminAcct.address, amount); 
+			const reedTx =  wusdcContract.connect(meriticAcct).redeem(svcAdminAcct.address, defaultSlot, amount); 
 			
 			await expect(reedTx).to.emit(wusdcContract, "Redeem").withArgs(meriticAcct.address, ethers.utils.parseUnits('10.0', decimals));
 	

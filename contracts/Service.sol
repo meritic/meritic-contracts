@@ -14,7 +14,7 @@ import "./SlotRegistry.sol";
 
 import "./underlying/WUSDC.sol";
 import "./SlotRegistry.sol";
-import "./extensions/IValue.sol";
+import "./extensions/Underlying.sol";
 
 
 
@@ -44,13 +44,7 @@ contract Service is ERC3525, AccessControl {
     event MintServiceTokenToAddress(uint256  newTokenId, uint256 slot, uint256 value);
 	event MetadataDescriptor(address  contractAddress);
 	event ValueTransfer(uint256 fromTokenId,  uint256 toTokenId, uint256 value);
-	//IValue private _valueToken;
-	
-	//error SlotsDiffer(uint256 slotId1, uint256 tokenId1, uint256 slotId2, uint256 tokenId2);
-	
-	/*TokenData[] internal _allTokens;
-    mapping(uint256 => uint256) internal _allTokensIndex;
-    mapping(address => AddressData) internal _addressData; */
+
 
     constructor(address adminAddress_,
         		address mktAdmin_,
@@ -93,18 +87,7 @@ contract Service is ERC3525, AccessControl {
    
     
 	function contractURI() public view virtual override returns (string memory) {
-        //string memory baseURI = _baseURI();
-        
         return ServiceMetadataDescriptor(address(metadataDescriptor)).constructContractURI2();
-        
-        /*return 
-            address(metadataDescriptor) != address(0) ? 
-                metadataDescriptor.constructContractURI() :
-                bytes(baseURI).length > 0 ? 
-                    string(abi.encodePacked(baseURI, "contract/", Strings.toHexString(address(this)))) : 
-                    "";
-        */            
-                  
     }
     
     
@@ -114,10 +97,9 @@ contract Service is ERC3525, AccessControl {
     
     function tokenURI(uint256 tokenId_) public view virtual override returns (string memory) {
         ERC3525._requireMinted(tokenId_);
-        
+      
         return ServiceMetadataDescriptor(address(metadataDescriptor)).constructTokenURI2(tokenId_, balanceOf(tokenId_));
-        //return metadataDescriptor.constructTokenURI(tokenId_);
-                
+
     }
     
     

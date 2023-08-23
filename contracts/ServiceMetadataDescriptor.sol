@@ -179,9 +179,9 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
     
     function _tokenProperties(uint256 tokenId_) internal view virtual override returns (string memory) {
-        return string(abi.encodePacked("{}"));
-        //return string(abi.encodePacked("{properties_uri", _baseURI, "contract/", Strings.toHexString(msg.sender), 
-        //				"/token/", tokenUUID[tokenId_], "/properties.json", "}"));
+        //return string(abi.encodePacked("{}"));
+        return string(abi.encodePacked("{properties_uri", _baseURI, "contract/", Strings.toHexString(msg.sender), 
+        				"/token/", tokenUUID[tokenId_], "/properties.json", "}"));
     }
     
     
