@@ -1,7 +1,6 @@
-# Sample Hardhat Project
+# Meritic Smart contracts
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
-
+This project includes Meritic's Smart contract implementation of Time credit, Cash credit, Items credit, and Priority credit for creators and service providers. 
 Try running some of the following tasks:
 
 ```shell
