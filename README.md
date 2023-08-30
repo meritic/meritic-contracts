@@ -18,7 +18,7 @@ Development is on-going / incomplete.
 Visit for up to date docs: https://docs.meritic.xyz
 ## License
 [Business Source License 1.1](https://mariadb.com/bsl11/)  and  (see LICENSE.txt)
-[MIT License  ]([https://eips.ethereum.org/EIPS/eip-3525](https://github.com/solv-finance/erc-3525/blob/main/LICENSE)) 
+[MIT License  ](https://github.com/solv-finance/erc-3525/blob/main/LICENSE)) 
 ## Learn More
 [Meritic ](/https://meritic.xyz) 
 
