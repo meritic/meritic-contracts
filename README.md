@@ -19,6 +19,10 @@ Visit for up to date docs: https://docs.meritic.xyz
 ## License
 [Business Source License 1.1](https://mariadb.com/bsl11/)  and  (see LICENSE.txt)
 [MIT License  ](https://github.com/solv-finance/erc-3525/blob/main/LICENSE)) 
+## Requirements
+Solidity 0.8
+Hardhat
+Node >= 19.2.0
 ## Learn More
 [Meritic ](/https://meritic.xyz) 
 
