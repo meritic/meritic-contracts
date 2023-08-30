@@ -14,7 +14,15 @@ Our implementation also introduces slot networks by creating the Registry, which
 
 Development is on-going / incomplete. 
 
-Try running some of the following tasks:
+## Documentation
+Visit for up to date docs: https://docs.meritic.xyz
+## License
+Business Source License 1.1 and MIT License (see LICENSE.txt)
+
+## Learn More
+[Meritic ](/https://meritic.xyz)
+[ERC-3525 Standard ](https://eips.ethereum.org/EIPS/eip-3525)
+[ERC-3525 Reference implementation (Solv Finance) ](https://github.com/solv-finance/erc-3525))
 
 
 ```shell
