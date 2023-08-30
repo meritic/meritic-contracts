@@ -11,14 +11,14 @@ Parameters
 Licensor:             Meritic
 
 Licensed Work:        Meritic Smart Contracts
-                      The Licensed Work is (c) 2023 Meritic Org.
+                      The Licensed Work is (c) 2023 Meritic Corp.
 
 Additional Use Grant: None
 
 Change Date:          The earlier of 2027-08-29 or years from first release for the specific version.   
 
 Change License:       Change License: MIT, text at https://opensource.org/license/mit/ with the following copyright notice: 
-                      Copyright 2023-present Meritic Org.
+                      Copyright 2023-present Meritic Corp.
 -----------------------------------------------------------------------------
 
 Terms
