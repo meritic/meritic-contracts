@@ -117,13 +117,13 @@ describe("SpendCredit", function () {
 	
 	
 	describe("Transfer WUSDC", function () {
-		  it("Transfer WUSDC from non-admin account - reverts with WUSDC: Transfer refused. Unauthorized account", async function () {
+		  /*it("Transfer WUSDC from non-admin account - reverts with WUSDC: Transfer refused. Unauthorized account", async function () {
 			  const { wusdcContract, usdcContract, meriticAcct, user1 } = await loadFixture(deployTokenFixture);
 			  await usdcContract.mint(wusdcContract.address, ethers.utils.parseUnits('10.0', decimals));
 			  
 			  const amount = ethers.utils.parseUnits('10.0', decimals);
 			  await expect(wusdcContract.connect(user1).transfer(meriticAcct.address, amount)).to.be.revertedWith('WUSDC: Transfer refused. Unauthorized account')
-		  });
+		  });*/
 		  
 		it("Transfer WUSDC from admin account", async function () {
 			  const { wusdcContract, defaultSlot, usdcContract, spendContract, meriticAcct } = await loadFixture(deployTokenFixture);
@@ -258,7 +258,7 @@ describe("SpendCredit", function () {
 	
 			await spendContract.connect(user1)["approve(uint256,address,uint256)"](tokenId, user2.address, ethers.utils.parseUnits('2.0', decimals));   
 		
-			const transTx = await spendContract.connect(user1)["transferFrom(uint256,address,uint256)"](tokenId, user1.address, ethers.utils.parseUnits('2.0', decimals));
+			const transTx = await spendContract.connect(user1)["transferFrom(uint256,address,uint256)"](tokenId, user2.address, ethers.utils.parseUnits('2.0', decimals));
 			const newTokenId = 2;
 			
 			await expect(transTx).to.emit(spendContract, "MintServiceTokenToAddress").withArgs(newTokenId, defaultSlot, ethers.utils.parseUnits('2.0', decimals));
@@ -351,36 +351,10 @@ describe("SpendCredit", function () {
 			
 			
 			await expect(transTx).to.emit(slotRegContract, "NewSlot").withArgs(netSlot1, 'Network slot');		
-			/*slotRegContract.connect(svcAdminAcct).approveContractForSlot(abcSpendContract.address, netSlot1);
-			
-			const value = ethers.utils.parseUnits('20.0', decimals);
-			await spendContract.mint(user1.address, netSlot1, value, uuidv4(),  'first minted token', 'token_image.png')
-			const transTx = await abcSpendContract.mint(user2.address, netSlot1, value, uuidv4(),  'first minted token', 'token_image.png')
-			const tokenId1 = 1;
-			await expect(transTx).to.emit(spendContract, "MintNetworkServiceToken").withArgs(tokenId1, netSlot1, value);
-			*/
-	    	/*const tokenId1 = 1;
-	    	const tokenIdAbc1 = 1;
-	    	
-	    	const networkTokenId1 = await spendContract.networkId(tokenId1);
-	    	const networkTokenId1Abc = await spendContract.networkId(tokenIdAbc1);
-	    	console.log(networkTokenId1);
-	    	console.log(networkTokenId1Abc);
-	    	
-			await spendContract.connect(user1)["approve(uint256,address,uint256)"](tokenId_1, user2.address, ethers.utils.parseUnits('5', decimals));   
-			await spendContract.connect(user1)["approve(uint256,address,uint256)"](tokenId_1, user3.address, ethers.utils.parseUnits('7', decimals));   
-			
-			await spendContract.connect(user1)["transferFrom(uint256,address,uint256)"](tokenId_1, user2.address, ethers.utils.parseUnits('5', decimals));
-			await spendContract.connect(user1)["transferFrom(uint256,address,uint256)"](tokenId_1, user3.address, ethers.utils.parseUnits('7', decimals));
-			const tokenId_2 = 2;
-			const tokenId_3 = 3;
-			await spendContract.connect(user2)["approve(uint256,address,uint256)"](tokenId_2, user3.address, ethers.utils.parseUnits('2', decimals));   
-			const transTx = await spendContract.connect(user2)["transferFrom(uint256,uint256,uint256)"](tokenId_2, tokenId_3, ethers.utils.parseUnits('2', decimals));
-			await expect(transTx).to.emit(spendContract, "ValueTransfer").withArgs(tokenId_2, tokenId_3, ethers.utils.parseUnits('2', decimals));
-			*/
+
 	    });
 	    
-	    it("Check register network slot", async function () {
+	    it("Check mint network token", async function () {
 			const decimals = 6
 			const { spendContract, abcSpendContract, wusdcContract, usdcContract, meriticAcct, svcAdminAcct, abcSvcAdminAcct, slotRegContract, 
 					defaultSlot, abcDefaultSlot, user1, user2, user3 } = await loadFixture(deployTokenFixture);
@@ -392,7 +366,13 @@ describe("SpendCredit", function () {
 			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
 			const transTx = await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 
 								'Network slot', 'http://sloturi', 'First network slot description', slotType.network);
-			const txCtrtSlotReg = await slotRegContract.connect(svcAdminAcct).registerContract(svcAdminAcct.address, netSlot1);
+								
+			//approveContractForSlot(address contract_, uint256 slotId_)
+			const regTx = await spendContract.connect(svcAdminAcct).registerOnSlot(netSlot1);
+			
+	
+			//const creditType  = {time: 0, cash: 1, items: 2, priority: 3};
+			//const txCtrtSlotReg = await slotRegContract.connect(svcAdminAcct).registerContract(svcAdminAcct.address, netSlot1, creditType.cash);
 
 			const value = ethers.utils.parseUnits('10.0', decimals);
 			const transTx3 = await spendContract.mint(user1.address, netSlot1, value, uuidv4(),  'first minted token', 'token_image.png')
@@ -401,34 +381,323 @@ describe("SpendCredit", function () {
 			const networkTokenId1 = await spendContract.networkId(tokenId1);
 			await expect(transTx3).to.emit(spendContract, "MintNetworkServiceToken").withArgs(tokenId1, netSlot1, value);
 			
+	    });
+	    
+	    
+	    it("Check mint correct network tokenId", async function () {
+			const decimals = 6
+			const { spendContract, wusdcContract, usdcContract, meriticAcct, svcAdminAcct, slotRegContract, 
+					defaultSlot, user1 } = await loadFixture(deployTokenFixture);
 			
-			//const transTx = await abcSpendContract.mint(user2.address, netSlot1, value, uuidv4(),  'first minted token', 'token_image.png')
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
 			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			const transTx = await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 
+								'Network slot', 'http://sloturi', 'First network slot description', slotType.network);
+								
+			//const creditType  = {time: 0, cash: 1, items: 2, priority: 3};
+			//const txCtrtSlotReg = await slotRegContract.connect(svcAdminAcct).registerContract(svcAdminAcct.address, netSlot1, creditType.cash);
+
+			const regTx = await spendContract.connect(svcAdminAcct).registerOnSlot(netSlot1);
 			
+			const value0 = ethers.utils.parseUnits('5.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			const value2 = ethers.utils.parseUnits('7.0', decimals);
+			const value3 = ethers.utils.parseUnits('3.0', decimals);
 			
-	    	/*const tokenId1 = 1;
-	    	const tokenIdAbc1 = 1;
-	    	
-	    	const networkTokenId1 = await spendContract.networkId(tokenId1);
-	    	const networkTokenId1Abc = await spendContract.networkId(tokenIdAbc1);
-	    	console.log(networkTokenId1);
-	    	console.log(networkTokenId1Abc);
-	    	
-			await spendContract.connect(user1)["approve(uint256,address,uint256)"](tokenId_1, user2.address, ethers.utils.parseUnits('5', decimals));   
-			await spendContract.connect(user1)["approve(uint256,address,uint256)"](tokenId_1, user3.address, ethers.utils.parseUnits('7', decimals));   
+			const transTx0 = await spendContract.mint(user1.address, defaultSlot, value0, uuidv4(),  '0 minted token', 'token_image.png');
+			const transTx1 = await spendContract.mint(user1.address, netSlot1, value1, uuidv4(),  '1 minted token', 'token_image.png');
+			const transTx2 = await spendContract.mint(user1.address, netSlot1, value2, uuidv4(),  '2 minted token', 'token_image.png');
+			const transTx3 = await spendContract.mint(user1.address, netSlot1, value3, uuidv4(),  '3 minted token', 'token_image.png');
 			
-			await spendContract.connect(user1)["transferFrom(uint256,address,uint256)"](tokenId_1, user2.address, ethers.utils.parseUnits('5', decimals));
-			await spendContract.connect(user1)["transferFrom(uint256,address,uint256)"](tokenId_1, user3.address, ethers.utils.parseUnits('7', decimals));
-			const tokenId_2 = 2;
-			const tokenId_3 = 3;
-			await spendContract.connect(user2)["approve(uint256,address,uint256)"](tokenId_2, user3.address, ethers.utils.parseUnits('2', decimals));   
-			const transTx = await spendContract.connect(user2)["transferFrom(uint256,uint256,uint256)"](tokenId_2, tokenId_3, ethers.utils.parseUnits('2', decimals));
-			await expect(transTx).to.emit(spendContract, "ValueTransfer").withArgs(tokenId_2, tokenId_3, ethers.utils.parseUnits('2', decimals));
-			*/
+			const netTokenId3 = 3;
+			await expect(transTx3).to.emit(spendContract, "MintNetworkServiceToken").withArgs(netTokenId3, netSlot1, value3);
+			
 	    });
 	});
 	
 	
+	describe("Value transfer", async function () {
 		
+		it("Check contract slot to network slot transfer fails", async function () {
+			const decimals = 6
+			const { spendContract, wusdcContract, usdcContract, meriticAcct, svcAdminAcct, slotRegContract, 
+					defaultSlot, user1, user2 } = await loadFixture(deployTokenFixture);
+					
+					
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
+			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 'Network slot', 'http://sloturi', 'network slot description', slotType.network);
+			
+			// const creditType  = {time: 0, cash: 1, items: 2, priority: 3};
+			// await slotRegContract.connect(svcAdminAcct).registerContract(svcAdminAcct.address, netSlot1, creditType.cash);
+
+			const regTx = await spendContract.connect(svcAdminAcct).registerOnSlot(netSlot1);
+			
+			const value0 = ethers.utils.parseUnits('15.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			
+			
+			await spendContract.mint(user1.address, defaultSlot, value0, uuidv4(),  '0 minted token', 'token_image.png');
+			await spendContract.mint(user2.address, netSlot1, value1, uuidv4(),  '1 minted token', 'token_image.png');
+			const contractTokenId1 = 1;
+			const contractTokenId2 = 2;
+
+			const tx = spendContract.connect(user1)["transferFrom(uint256,uint256,uint256)"](contractTokenId1, contractTokenId2, ethers.utils.parseUnits('5', decimals))
+			await expect(tx).to.be.revertedWith('SpendCredit: transfer to token with different slot')
+			
+	    });
+	    
+	    
+	    it("Check contract slot to contract slot value transfer", async function () {
+			const decimals = 6
+			const { spendContract, wusdcContract, usdcContract, meriticAcct, svcAdminAcct, slotRegContract, 
+					defaultSlot, user1, user2 } = await loadFixture(deployTokenFixture);
+					
+					
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
+			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 'Network slot', 'http://sloturi', 'network slot description', slotType.network);
+			
+			const creditType  = {time: 0, cash: 1, items: 2, priority: 3};
+			await slotRegContract.connect(svcAdminAcct).registerContract(svcAdminAcct.address, netSlot1, creditType.cash);
+
+			const value0 = ethers.utils.parseUnits('15.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			
+			
+			await spendContract.mint(user1.address, defaultSlot, value0, uuidv4(),  '0 minted token', 'token_image.png');
+			await spendContract.mint(user2.address, defaultSlot, value1, uuidv4(),  '1 minted token', 'token_image.png');
+			const contractTokenId1 = 1;
+			const contractTokenId2 = 2;
+			
+			await spendContract.connect(user1)["approve(uint256,address,uint256)"](contractTokenId1, user2.address, ethers.utils.parseUnits('5', decimals));   
+			const tx = await spendContract.connect(user1)["transferFrom(uint256,uint256,uint256)"]
+								(contractTokenId1, contractTokenId2, ethers.utils.parseUnits('5', decimals));
+			
+			const balance = await spendContract['balanceOf(uint256)'](contractTokenId2);
+			expect(ethers.utils.formatUnits(balance, decimals)).to.equal('10.0');
+	    });
+	    
+	    
+	    
+	    it("Check contract slot to contract slot value transfer with discount - toToken discount", async function () {
+			const decimals = 6
+			const { spendContract, wusdcContract, usdcContract, meriticAcct, svcAdminAcct, slotRegContract, 
+					defaultSlot, user1, user2 } = await loadFixture(deployTokenFixture);
+					
+					
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
+			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 'Network slot', 'http://sloturi', 'network slot description', slotType.network);
+			
+			const creditType  = {time: 0, cash: 1, items: 2, priority: 3};
+			await slotRegContract.connect(svcAdminAcct).registerContract(svcAdminAcct.address, netSlot1, creditType.cash);
+
+			const value0 = ethers.utils.parseUnits('15.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			
+			
+		 	const threeThousandBasis = ethers.utils.parseUnits('3000', 18); ; //30%
+    		const zeroBasis = 0; //0%
+    		
+			await spendContract.mintWithDiscount(user1.address, defaultSlot, value0, threeThousandBasis, uuidv4(),  '0 minted token', 'token_image.png');
+			await spendContract.mintWithDiscount(user2.address, defaultSlot, value1, zeroBasis, uuidv4(),  '1 minted token', 'token_image.png');
+			
+			const contractTokenId1 = 1;
+			const contractTokenId2 = 2;
+	
+
+			await spendContract.connect(user1)["approve(uint256,address,uint256)"](contractTokenId1, user2.address, ethers.utils.parseUnits('5', decimals)); 
+			const tx = await spendContract.connect(user1)["transferFrom(uint256,uint256,uint256)"](contractTokenId1, contractTokenId2, ethers.utils.parseUnits('5', decimals));
+			const token2Discount = await spendContract.tokenDiscount(contractTokenId2);
+		
+			expect(ethers.utils.formatUnits(token2Discount, 18)).to.equal('1500.0');
+	    });
+	    
+	    it("Check contract slot to contract slot value transfer with discount - fromToken discount", async function () {
+			const decimals = 6
+			const { spendContract, wusdcContract, usdcContract, meriticAcct, svcAdminAcct, slotRegContract, 
+					defaultSlot, user1, user2 } = await loadFixture(deployTokenFixture);
+					
+					
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
+			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 'Network slot', 'http://sloturi', 'network slot description', slotType.network);
+			
+			const regTx = await spendContract.connect(svcAdminAcct).registerOnSlot(netSlot1);
+			
+			/*const creditType  = {time: 0, cash: 1, items: 2, priority: 3};
+			await slotRegContract.connect(svcAdminAcct).registerContract(svcAdminAcct.address, netSlot1, creditType.cash);
+			*/
+			const value0 = ethers.utils.parseUnits('15.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			
+			
+		 	const threeThousandBasis = ethers.utils.parseUnits('3000', 18); //30%
+    		const zeroBasis = 0; //0%
+    		
+			await spendContract.mintWithDiscount(user1.address, defaultSlot, value0, threeThousandBasis, uuidv4(),  '0 minted token', 'token_image.png');
+			await spendContract.mintWithDiscount(user2.address, defaultSlot, value1, zeroBasis, uuidv4(),  '1 minted token', 'token_image.png');
+			
+			const contractTokenId1 = 1;
+			const contractTokenId2 = 2;
+	
+
+			await spendContract.connect(user1)["approve(uint256,address,uint256)"](contractTokenId1, user2.address, ethers.utils.parseUnits('5', decimals)); 
+			const tx = await spendContract.connect(user1)["transferFrom(uint256,uint256,uint256)"](contractTokenId1, contractTokenId2, ethers.utils.parseUnits('5', decimals));
+			const token1Discount = await spendContract.tokenDiscount(contractTokenId1);
+		
+			expect(ethers.utils.formatUnits(token1Discount, 18)).to.equal('3000.0');
+	    });
+	    
+	    
+	    
+	    it("Check network slot to network slot value transfer with discount - toToken discount", async function () {
+			const decimals = 6
+			const { spendContract, abcSpendContract, wusdcContract, usdcContract, 
+					meriticAcct, svcAdminAcct, abcSvcAdminAcct, slotRegContract, 
+					 user1, user2 } = await loadFixture(deployTokenFixture);
+					
+					
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
+			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 'Network slot', 'http://sloturi', 'network slot description', slotType.network);
+			
+			const regTx = await spendContract.connect(svcAdminAcct).registerOnSlot(netSlot1);
+			
+			
+			await slotRegContract.connect(svcAdminAcct).approveContractForSlot(abcSpendContract.address, netSlot1);
+			await abcSpendContract.connect(abcSvcAdminAcct).registerOnSlot(netSlot1);
+			
+			const value0 = ethers.utils.parseUnits('15.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			
+			
+		 	const threeThousandBasis = ethers.utils.parseUnits('3000', 18); //30%
+    		const zeroBasis = 0; //0%
+    		
+			await spendContract.mintWithDiscount(user1.address, netSlot1, value0, threeThousandBasis, uuidv4(),  '0 minted token', 'token_image.png');
+			await abcSpendContract.mintWithDiscount(user2.address, netSlot1, value1, zeroBasis, uuidv4(),  '1 minted token', 'token_image.png');
+			
+			const contractTokenId1 = 1;
+			const contractTokenId2 = 2;
+	
+			await slotRegContract.connect(user1).setApprovalForAll(spendContract.address, true); 
+			await slotRegContract.connect(user1)["approve(uint256,address,uint256)"](contractTokenId1, user2.address, ethers.utils.parseUnits('5', decimals));
+			
+			const allowance = await slotRegContract.allowance(contractTokenId1, user2.address);
+			
+			await spendContract.connect(user1)["transferFrom(uint256,uint256,uint256)"](contractTokenId1, contractTokenId2, ethers.utils.parseUnits('5', decimals));
+			const token2Discount = await spendContract.tokenDiscount(contractTokenId2);
+		
+			expect(ethers.utils.formatUnits(token2Discount, 18)).to.equal('1500.0');
+	    });
+	    
+	    
+	    /*it("Check network slot to network slot value transfer with discount - toToken discount - same contract", async function () {
+			const decimals = 6
+			const { spendContract, wusdcContract, usdcContract, meriticAcct, svcAdminAcct, slotRegContract, user1, user2 } = await loadFixture(deployTokenFixture);
+					
+					
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
+			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 'Network slot', 'http://sloturi', 'network slot description', slotType.network);
+			
+			const regTx = await spendContract.connect(svcAdminAcct).registerOnSlot(netSlot1);
+			
+			
+			const value0 = ethers.utils.parseUnits('15.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			
+			
+		 	const threeThousandBasis = ethers.utils.parseUnits('3000', 18); //30%
+    		const zeroBasis = 0; //0%
+    		
+			await spendContract.mintWithDiscount(user1.address, netSlot1, value0, threeThousandBasis, uuidv4(),  '0 minted token', 'token_image.png');
+			await spendContract.mintWithDiscount(user2.address, netSlot1, value1, zeroBasis, uuidv4(),  '1 minted token', 'token_image.png');
+			
+			const contractTokenId1 = 1;
+			const contractTokenId2 = 2;
+	
+			await slotRegContract.connect(user1).setApprovalForAll(spendContract.address, true); 
+			await slotRegContract.connect(user1)["approve(uint256,address,uint256)"](contractTokenId1, user2.address, ethers.utils.parseUnits('5', decimals));
+			
+			const allowance = await slotRegContract.allowance(contractTokenId1, user2.address);
+			
+			await spendContract.connect(user1)["transferFrom(uint256,uint256,uint256)"](contractTokenId1, contractTokenId2, ethers.utils.parseUnits('5', decimals));
+			const token2Discount = await spendContract.tokenDiscount(contractTokenId2);
+		
+			expect(ethers.utils.formatUnits(token2Discount, 18)).to.equal('1500.0');
+	    });*/
+	    
+	    
+	    it("Check network slot to network slot value transfer with discount", async function () {
+			const decimals = 6
+			const { spendContract, abcSpendContract, wusdcContract, usdcContract, 
+					meriticAcct, svcAdminAcct, abcSvcAdminAcct, slotRegContract, 
+					 user1, user2 } = await loadFixture(deployTokenFixture);
+					
+					
+			await usdcContract.connect(user1).transfer(meriticAcct.address, ethers.utils.parseUnits('20.0', 6));
+			await usdcContract.connect(meriticAcct).transfer(wusdcContract.address, ethers.utils.parseUnits('20.0', 6));
+			
+			const netSlot1 = 111111;
+			const slotType  = {contract: 0, network: 1, networkRevShare: 2};
+			await slotRegContract.connect(svcAdminAcct).registerSlot(netSlot1, 'Network slot', 'http://sloturi', 'network slot description', slotType.network);
+			
+			const regTx = await spendContract.connect(svcAdminAcct).registerOnSlot(netSlot1);
+			
+			
+			await slotRegContract.connect(svcAdminAcct).approveContractForSlot(abcSpendContract.address, netSlot1);
+			await abcSpendContract.connect(abcSvcAdminAcct).registerOnSlot(netSlot1);
+			
+			const value0 = ethers.utils.parseUnits('15.0', decimals);
+			const value1 = ethers.utils.parseUnits('5.0', decimals);
+			
+			const discountBasisPts = 3000;
+		 	const threeThousandBasis = ethers.utils.parseUnits(discountBasisPts + '', 18); //30%
+    		const zeroBasis = 0; //0%
+    		
+			await spendContract.mintWithDiscount(user1.address, netSlot1, value0, threeThousandBasis, uuidv4(),  '0 minted token', 'token_image.png');
+			await abcSpendContract.mintWithDiscount(user2.address, netSlot1, value1, zeroBasis, uuidv4(),  '1 minted token', 'token_image.png');
+			
+			const contractTokenId1 = 1;
+			const contractTokenId2 = 2;
+	
+			await slotRegContract.connect(user1).setApprovalForAll(spendContract.address, true);
+			const b4TransferBalance = parseFloat(ethers.utils.formatUnits(await wusdcContract.balanceOf(abcSpendContract.address), decimals));  
+	
+			await slotRegContract.connect(user1)["approve(uint256,address,uint256)"](contractTokenId1, user2.address, ethers.utils.parseUnits('5', decimals));
+			
+			
+			await spendContract.connect(user1)["transferFrom(uint256,uint256,uint256)"](contractTokenId1, contractTokenId2, ethers.utils.parseUnits('5', decimals));
+			const balance = parseFloat(ethers.utils.formatUnits(await wusdcContract.balanceOf(abcSpendContract.address), decimals));
+			
+			
+			expect(balance - b4TransferBalance).to.equal(3.5);
+	    });
+	    
+	});
 });
   

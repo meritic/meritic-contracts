@@ -29,14 +29,14 @@ contract Service is ERC3525, AccessControl {
     
     address internal _adminAddress;
     uint256 internal _defaultSlot;
-    SlotRegistry internal slotRegistry;
-    string internal contractType;
+    SlotRegistry internal _slotRegistry;
+    SlotRegistry.CreditType internal _contractType;
     
     mapping(uint256 => uint256) internal networkTokenId;
  
     
     bytes32 public constant MKT_ARBITRATOR_ROLE = keccak256("MKT_ARBITRATOR_ROLE");
-    
+    bytes32 public constant SERVICE_ADMIN_ROLE = keccak256("SERVICE_ADMIN_ROLE");
     
     
     event MintServiceToken(uint256  tokenId, uint256 slot, uint256 value);
@@ -60,15 +60,19 @@ contract Service is ERC3525, AccessControl {
         		    
 
         _defaultSlot = defaultSlot_;
-  		slotRegistry = SlotRegistry(slotRegistry_);
+  		_slotRegistry = SlotRegistry(slotRegistry_);
   		_adminAddress = adminAddress_;
-  		contractType = contractType_;
-  	
-  		slotRegistry.registerContract(adminAddress_, defaultSlot_);
+  		
+  		_contractType = ( keccak256(abi.encodePacked(contractType_)) == keccak256(abi.encodePacked('time'))? SlotRegistry.CreditType.time_ : 
+  							keccak256(abi.encodePacked(contractType_)) == keccak256(abi.encodePacked('cash')) ?  SlotRegistry.CreditType.cash_ : 
+  								keccak256(abi.encodePacked(contractType_)) == keccak256(abi.encodePacked('items')) ?  SlotRegistry.CreditType.items_ :
+  									SlotRegistry.CreditType.priority_ );
+  						
+  		_slotRegistry.registerContract(adminAddress_, defaultSlot_, _contractType);
         metadataDescriptor = new ServiceMetadataDescriptor(baseuri_, contractDescription_, contractImage_, slotRegistry_);
         
         _setupRole(MKT_ARBITRATOR_ROLE, mktAdmin_);
-
+		_setupRole(SERVICE_ADMIN_ROLE, adminAddress_);	
         
         emit MetadataDescriptor(address(metadataDescriptor));
     }
@@ -115,7 +119,12 @@ contract Service is ERC3525, AccessControl {
 	
 	
 	function creditType() public view returns (string memory) {
-	    return contractType;
+	    string memory ctype;
+	    ctype = (_contractType == SlotRegistry.CreditType.priority_ ? 'priority' :
+	        		_contractType == SlotRegistry.CreditType.time_ ? 'time' :
+	        			_contractType == SlotRegistry.CreditType.items_ ? 'items' : 'cash');
+	        			
+	    return ctype;
 	}
 	
     function mint(address owner_, 
@@ -143,15 +152,15 @@ contract Service is ERC3525, AccessControl {
   	
   	
   	function networkMintWithDiscount(address owner_, uint256 slot_, uint256 value_, uint256 discountBasisPts_,
-        			string memory uuid_, string memory token_description_, string memory token_image_) public returns (uint256) {
+        			string memory uuid_, string memory tokenDescription_, string memory tokenImage_) public virtual returns (uint256) {
         			    
-        uint256 decimals = ERC3525.valueDecimals();
+        //uint256 decimals = ERC3525.valueDecimals();
     	
-    	uint256 regTokenId = slotRegistry.mintWithDiscount(owner_, slot_, value_, discountBasisPts_ / (10  ** decimals));
+    	uint256 regTokenId = _slotRegistry.mintWithDiscount(owner_, slot_, value_, discountBasisPts_);
         
         ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(regTokenId, uuid_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(regTokenId, token_description_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(regTokenId, token_image_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(regTokenId, tokenDescription_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(regTokenId, tokenImage_);
     	
     	
         return regTokenId;
@@ -165,7 +174,7 @@ contract Service is ERC3525, AccessControl {
         uint256 decimals = ERC3525.valueDecimals();
         
         
-    	uint256 regTokenId = slotRegistry.mintWithTVRate(owner_, slot_, value_, tVRate_ / (10  ** decimals));
+    	uint256 regTokenId = _slotRegistry.mintWithTVRate(owner_, slot_, value_, tVRate_ / (10  ** decimals));
         
         ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(regTokenId, uuid_);
     	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(regTokenId, token_description_);
@@ -203,11 +212,28 @@ contract Service is ERC3525, AccessControl {
         	emit MintServiceTokenToAddress(newTokenId, slotOf(fromTokenId_), value_);
         	return newTokenId;
         }else{
-            uint256 newTokenId = slotRegistry.transferFrom(fromTokenId_, to_, value_);
+            uint256 newTokenId = _slotRegistry.transferFrom(fromTokenId_, to_, value_);
             emit MintServiceTokenToAddress(newTokenId, slotOf(fromTokenId_), value_);
         	return newTokenId;
         }
     }
+    
+    
+    
+    
+    
+    function contractValueTransfer(
+        uint256 fromTokenId_,
+        uint256 toTokenId_,
+        uint256 value_
+    ) internal  {
+        
+        
+        ERC3525.transferFrom(fromTokenId_, toTokenId_, value_);
+        emit ValueTransfer(fromTokenId_,  toTokenId_, value_);	
+    }
+    
+    
     
     
 
@@ -216,39 +242,21 @@ contract Service is ERC3525, AccessControl {
         uint256 toTokenId_,
         uint256 value_
     ) public payable virtual override {
+        //require(isContractToken(toTokenId_) || _isNetworkToken(toTokenId_),
+        require(isContractToken(toTokenId_) || _isNetworkToken(toTokenId_), 'Token ID of receiver not recognized by this contract or the registry');
+        
+        
         if(isContractToken(fromTokenId_) && isContractToken(toTokenId_)){
-        	ERC3525.transferFrom(fromTokenId_, toTokenId_, value_);
-        	emit ValueTransfer(fromTokenId_,  toTokenId_, value_);	
         	
+        	ERC3525.transferFrom(fromTokenId_, toTokenId_, value_);
+        	emit ValueTransfer(fromTokenId_,  toTokenId_, value_);
         	//_contractTokenDiscount[toTokenId] = calcContractTokenDiscount(fromTokenId_, toTokenId_, value_);
             //super.transferFrom(fromTokenId_, toTokenId_, value_);
         	
-       	}else if(isInternalToken(fromTokenId_) && isInternalToken(toTokenId_)){
-       	    uint256 netFromTokenId = networkTokenId[fromTokenId_];
-       	    uint256 netTokenId = networkTokenId[toTokenId_];
-       	    if(netFromTokenId != 0 && netTokenId != 0){
-       	        slotRegistry.transferFrom(netFromTokenId, netTokenId, value_);
-       	    }else if(netFromTokenId != 0 && netTokenId == 0){
-       	        slotRegistry.transferFrom(netFromTokenId, toTokenId_, value_);
-       	    }else if(netFromTokenId == 0 && netTokenId != 0){
-       	        slotRegistry.transferFrom(fromTokenId_, netTokenId, value_);
-       	    }else if(netFromTokenId == 0 && netTokenId == 0){
-       	        slotRegistry.transferFrom(fromTokenId_, toTokenId_, value_);
-       	    }
-       	}else if(isInternalToken(fromTokenId_) && isExternalToken(toTokenId_) ){
-       	    
-       	    address toContractAddress = slotRegistry.contractOf(toTokenId_);
-        	require(keccak256(bytes(creditType())) == keccak256(bytes(Service(toContractAddress).creditType())), "Cannot transfer between different credit types");
-        	uint256 netFromTokenId = networkTokenId[fromTokenId_];
-        	
-        	if(netFromTokenId != 0){
-       	        slotRegistry.transferFrom(netFromTokenId, toTokenId_, value_);
-       	    }else{
-       	        slotRegistry.transferFrom(fromTokenId_, toTokenId_, value_);
-       	    }
-        }else{
-            /* transfer not allowed */
-        }
+       	} else {
+       	    _slotRegistry.transferFrom(fromTokenId_, toTokenId_, value_);
+       	}    
+    	
     }
     
     
@@ -265,10 +273,15 @@ contract Service is ERC3525, AccessControl {
         return (networkTokenId[tokenId_] != 0);
     }
     
+    function _isNetworkToken(uint256 tokenId_) internal view returns (bool) {
+        
+        return (networkTokenId[tokenId_] != 0 || _slotRegistry.isNetworkToken(tokenId_));
+    }
+    
     function isExternalToken(uint256 tokenId_) internal view returns (bool) {
         
-        return ( (networkTokenId[tokenId_] == 0 && slotRegistry.contractOf(tokenId_) != address(this))
-        			|| (networkTokenId[tokenId_] != 0  && slotRegistry.contractOf(networkTokenId[tokenId_]) != address(this)) );
+        return ( (networkTokenId[tokenId_] == 0 && _slotRegistry.contractOf(tokenId_) != address(this))
+        			|| (networkTokenId[tokenId_] != 0  && _slotRegistry.contractOf(networkTokenId[tokenId_]) != address(this)) );
     }
     
     
@@ -297,8 +310,21 @@ contract Service is ERC3525, AccessControl {
     
 	
 	
+	
+	
+	function registerOnSlot(uint256 slotId_) public {
+	    require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), 'Sender not authorized to register contract to this slot');
+	    _slotRegistry.registerContract(_adminAddress, slotId_, _contractType);
+	}
+	
+	function _exists(uint256 tokenId_) internal view virtual override returns (bool) {
+        return ERC3525._exists(tokenId_) || _isNetworkToken(tokenId_);
+    }
+    
+    
+	
 	function _requireMinted(uint256 tokenId_) internal view virtual override {
-        require(_exists(tokenId_) || isInternalToken(tokenId_), "ERC3525: invalid token ID");
+        require(_exists(tokenId_) || _isNetworkToken(tokenId_), "ERC3525: invalid token ID");
     }
     
     
@@ -309,7 +335,7 @@ contract Service is ERC3525, AccessControl {
             return super.balanceOf(tokenId_);
         }else{
             uint256 netTokenId = networkTokenId[tokenId_];
-            return slotRegistry.balanceOf(netTokenId);
+            return _slotRegistry.balanceOf(netTokenId);
         }
     }
     
@@ -320,9 +346,13 @@ contract Service is ERC3525, AccessControl {
         if(isContractToken(tokenId_)){
             return super.ownerOf(tokenId_);
         }else{
-            return slotRegistry.ownerOf(networkTokenId[tokenId_]);
+            return _slotRegistry.ownerOf(networkTokenId[tokenId_]);
         }
     }
+    
+    
+   
+    
     
     
     function approve(uint256 tokenId_, address to_, uint256 value_) public payable virtual override {
@@ -331,7 +361,7 @@ contract Service is ERC3525, AccessControl {
         if(isContractToken(tokenId_)){
             super.approve(tokenId_, to_, value_);
         }else{
-            slotRegistry.approve(networkTokenId[tokenId_], to_, value_);
+            _slotRegistry.approve(networkTokenId[tokenId_], to_, value_);
         }
     }
 
@@ -342,7 +372,7 @@ contract Service is ERC3525, AccessControl {
         if(isContractToken(tokenId_)){
             return super.allowance(tokenId_, operator_);
         }else{
-            return slotRegistry.allowance(networkTokenId[tokenId_], operator_);
+            return _slotRegistry.allowance(networkTokenId[tokenId_], operator_);
         }
     }
     

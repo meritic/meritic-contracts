@@ -217,22 +217,22 @@ contract TimeCredit is Service {
 	            _timeValueRate[toTokenId_] = calcToTokenTimeValueRate(fromTokenId_, toTokenId_, valueSeconds);
 	        }
 	        super.transferFrom(fromTokenId_, toTokenId_, valueSeconds);
-		}else if(isContractToken(fromTokenId_) && !isContractToken(toTokenId_)){
-		    /* canot transfer */
-		    
-		}else if(isInternalToken(fromTokenId_) && isInternalToken(toTokenId_)){
+		}else if(!isContractToken(fromTokenId_) && !isContractToken(toTokenId_)){
 		    
 		    super.transferFrom(fromTokenId_, toTokenId_, valueSeconds);
 		    
-		}else if(isInternalToken(fromTokenId_) && !isInternalToken(toTokenId_)){
-		    address toContractAddress = slotRegistry.contractOf(toTokenId_);
+		    address toContractAddress = _slotRegistry.contractOf(toTokenId_);
 		    uint256 networkTokenId = networkTokenId[fromTokenId_];
 		    
-		    uint256 tVRate = (networkTokenId != 0) ? slotRegistry.timeValueRate(networkTokenId) : slotRegistry.timeValueRate(fromTokenId_);
+		    uint256 tVRate = (networkTokenId != 0) ? _slotRegistry.timeValueRate(networkTokenId) : _slotRegistry.timeValueRate(fromTokenId_);
+		    
+		    
+		    
 		    uint256 uValue =  tVRate * valueSeconds / (10 ** _decimals);
 		    _valueContract.transfer(toContractAddress, uValue);
+		  
 		}else{
-		    /* no transfer */
+		    revert("TimeCredit: transfer to token with different slot");
 		}
 		
     }
@@ -264,9 +264,9 @@ contract TimeCredit is Service {
 	   }else if(isInternalToken(tokenId_)){
 	       uint256 netTokenId = networkTokenId[tokenId_];
 	       if(netTokenId != 0){
-	           uValue = slotRegistry.timeValueRate(netTokenId) * valueSeconds_ / (10 ** _decimals); 
+	           uValue = _slotRegistry.timeValueRate(netTokenId) * valueSeconds_ / (10 ** _decimals); 
 	       }else{
-	           uValue = slotRegistry.timeValueRate(tokenId_) * valueSeconds_ / (10 ** _decimals); 
+	           uValue = _slotRegistry.timeValueRate(tokenId_) * valueSeconds_ / (10 ** _decimals); 
 	       }
 	   }
 	   

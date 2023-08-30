@@ -4,9 +4,6 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-//import "./ERC20.sol";
-//import "../../utils/SafeTransferLib.sol";
-
 import "../extensions/Underlying.sol";
 
 
@@ -15,7 +12,6 @@ import "../extensions/Underlying.sol";
 
 contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
     
-   // using SafeTransferLib for address;
 
     ERC20 private usdc;
     
@@ -56,7 +52,7 @@ contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
         if(amount_ <= _slotApprovedValues[slotId_][msg.sender]){
             _burn(msg.sender, amount_); 
 	        usdc.approve(to_, amount_);
-	        usdc.transfer(to_, amount_); /// pay out USDC
+	        usdc.transfer(to_, amount_);
 	        
 	        _slotApprovedValues[slotId_][msg.sender] -= amount_;
         }
@@ -73,7 +69,7 @@ contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
     function _mint(address to, uint256 amount) internal override {
         usdc.approve(to, amount);
    		usdc.transfer(to, amount); 
-   		super._mint(to, amount); /// mint WUSD
+   		super._mint(to, amount); 
     }
     
     
@@ -87,7 +83,6 @@ contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
     }
     
     function transfer(address to, uint256 amount) public virtual override (ERC20, Underlying) returns (bool) {
-        require(hasRole(TRANSFER_ADMIN_ROLE, msg.sender), "WUSDC: Transfer refused. Unauthorized account");
         bool result = super.transfer(to, amount);
         usdc.approve(to, amount);
         usdc.transfer(to, amount); 

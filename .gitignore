@@ -6,3 +6,4 @@ cache/
 build
 artifacts/build-info/
 temp/
+docs/

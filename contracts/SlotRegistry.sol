@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@solvprotocol/erc-3525/ERC3525.sol";
-import "./ServiceMetadataDescriptor.sol";
+import "./ServiceMetadataDescriptor.sol";	
 import "./Service.sol";
 
 
@@ -17,6 +17,7 @@ contract SlotRegistry is ERC3525 {
     //mapping (uint256 => string) private _description;
     
     enum SlotType {contract_, network_, networkRevShare_ }
+    enum CreditType {time_, cash_, items_, priority_}
     
     struct Slot {
     	address creator;
@@ -26,13 +27,16 @@ contract SlotRegistry is ERC3525 {
         string slotURI;
         SlotType slotType;
         address[] contracts;
+        
     }
 
+	mapping(address => CreditType) internal _contractType;
+    
     
     mapping(uint256 => Slot) private _registry;  
-    mapping(uint256 => uint256) private _slotOfToken;
+    // mapping(uint256 => uint256) private _slotOfToken;
     mapping(uint256 => address) private _contractOfToken;
-    mapping(address => uint256) private _contractSlot;
+    //mapping(address => uint256) private _contractSlot;
     
     mapping(uint256 => uint256) private _tokenDiscount;
     mapping(uint256 => uint256) private _tokenTVRate;
@@ -43,6 +47,7 @@ contract SlotRegistry is ERC3525 {
     
     string private _baseuri;    
     
+    uint256 internal _discountDecimals = 18;
     
     event MetadataDescriptor(address  contractAddress);
     event NewSlot(uint256 slotId, string slotName);
@@ -66,14 +71,15 @@ contract SlotRegistry is ERC3525 {
     
     
     
-    function registerContract(address adminAddress_, uint256 slot_) external {
+    function registerContract(address adminAddress_, uint256 slot_, CreditType type_) external {
         require(_isSlotAdmin[slot_][adminAddress_], "Contract admin is not authorized to register to this slot");
         _registry[slot_].contracts.push(msg.sender);
-        _inSlotNetwork[slot_][msg.sender];
+        _contractType[msg.sender] = type_;
+        _inSlotNetwork[slot_][msg.sender] = true;
         
-        if(_registry[slot_].slotType == SlotType.contract_){
+        /*if(_registry[slot_].slotType == SlotType.contract_){
             _contractSlot[msg.sender] = slot_;
-        }
+        }*/
         
     }
     
@@ -82,7 +88,9 @@ contract SlotRegistry is ERC3525 {
     function registerSlot(uint256 slotId_, string memory slotName_,  string memory slotURI_, string memory description_, SlotType type_) external returns (bool){
         require(!exists(slotId_), "Slot already registered");
 
-        Slot memory _newSlot = Slot(msg.sender, slotId_, slotName_, description_, slotURI_, type_, new address[](0));
+
+    
+        Slot memory _newSlot = Slot({creator: msg.sender, slotId: slotId_, name: slotName_, description: description_, slotURI: slotURI_, slotType: type_,  contracts: new address[](0)});
         _registry[slotId_] = _newSlot;
         _isSlotAdmin[slotId_][msg.sender] = (_registry[slotId_].slotId == slotId_);
         
@@ -104,6 +112,9 @@ contract SlotRegistry is ERC3525 {
     }
     
     
+    function isNetworkToken(uint256 tokenId_) external view returns (bool){
+        return ERC3525._exists(tokenId_);
+    }
     
     function slotName(uint256 slotId_) external view returns (string memory) {
         require(exists(slotId_), "Slot is not registered");
@@ -129,10 +140,24 @@ contract SlotRegistry is ERC3525 {
     }
     
     
-    function mintWithDiscount(address owner_, uint256 slot_, uint256 value_, uint256 adjDiscountBasisPts_) public returns (uint256) {
-        
-        uint256 tokenId = ERC3525._createOriginalTokenId();
-        ERC3525._mint(owner_, tokenId, slot_, value_);
+    
+    function mint(address owner_, 
+        			uint256 slot_, 
+        			uint256 value_
+    ) external virtual returns (uint256) {
+        require(_inSlotNetwork[slot_][msg.sender], "Sender not authorized to mint to slot");
+        uint256 tokenId = ERC3525._mint(owner_, slot_, value_);
+        _contractOfToken[tokenId] = msg.sender;
+        return tokenId;
+    }
+    
+    
+    
+    function mintWithDiscount(address owner_, uint256 slot_, uint256 value_, uint256 adjDiscountBasisPts_) external returns (uint256) {
+        require(_inSlotNetwork[slot_][msg.sender], "Sender not authorized to mint to slot");
+        uint256 tokenId = ERC3525._mint(owner_, slot_, value_);
+        _contractOfToken[tokenId] = msg.sender;
+
         _tokenDiscount[tokenId] = adjDiscountBasisPts_;
         
         return tokenId;
@@ -154,25 +179,10 @@ contract SlotRegistry is ERC3525 {
     
     
     
-    function mint(address owner_, 
-        			uint256 slot_, 
-        			uint256 value_
-    ) external virtual returns (uint256) {
-        require(_inSlotNetwork[slot_][msg.sender], "Sender not authorized to mint to slot");
-        uint256 tokenId = ERC3525._mint(owner_, slot_, value_);
-        _slotOfToken[tokenId] = slot_;
-        _contractOfToken[tokenId] = msg.sender;
-        return tokenId;
-    }
     
     
     
-    
-    function slotOfToken(uint256 tokenId_) external view returns (uint256){
-        ERC3525._requireMinted(tokenId_);
-        return _slotOfToken[tokenId_];
-    }
-    
+
     
     function contractOf(uint256 networkTokenId_) external view returns (address){
         ERC3525._requireMinted(networkTokenId_);
@@ -199,20 +209,18 @@ contract SlotRegistry is ERC3525 {
     }
     
     
-    function transferFrom(
+    function _cashValueTransfer(
         uint256 fromTokenId_,
         uint256 toTokenId_,
         uint256 value_
-    ) public payable virtual override {
-        ERC3525._requireMinted(fromTokenId_);
-	    ERC3525._requireMinted(toTokenId_);
-	    uint256 tenKBasisPts = 10000;
+    ) internal {
+        uint256 tenKBasisPts = 10000;
         uint256 toTokenValue = super.balanceOf(toTokenId_);
         
         uint256 discount;
         
         if(_tokenDiscount[fromTokenId_] != _tokenDiscount[toTokenId_]){
-            discount = tenKBasisPts - ((tenKBasisPts - _tokenDiscount[fromTokenId_]) * value_ + (tenKBasisPts - _tokenDiscount[toTokenId_]) * toTokenValue) / (value_ + toTokenValue);
+            discount = tenKBasisPts * (10 ** _discountDecimals) - ((tenKBasisPts *  (10 ** _discountDecimals) - _tokenDiscount[fromTokenId_]) * value_ + (tenKBasisPts * (10 ** _discountDecimals) - _tokenDiscount[toTokenId_]) * toTokenValue) / (value_ + toTokenValue);
         }else{
             discount = _tokenDiscount[toTokenId_];
         }
@@ -223,7 +231,59 @@ contract SlotRegistry is ERC3525 {
     }
     
     
+    
+    
+    function _timeValueTransfer(
+        uint256 fromTokenId_,
+        uint256 toTokenId_,
+        uint256 value_
+    ) internal {
+        uint256 toTokenValue = ERC3525.balanceOf(toTokenId_);
+  	    
+  	    _tokenTVRate[toTokenId_] = (_tokenTVRate[fromTokenId_] * value_ + _tokenTVRate[toTokenId_] * toTokenValue) / (value_ + toTokenValue);
+        
+        super.transferFrom(fromTokenId_, toTokenId_, value_);
+    }
+    
+    
+    
+    function transferFrom(
+        uint256 fromTokenId_,
+        uint256 toTokenId_,
+        uint256 value_
+    ) public payable virtual override {
+        ERC3525._requireMinted(fromTokenId_);
+	    ERC3525._requireMinted(toTokenId_);
+	    
+	    uint256 slotId = ERC3525.slotOf(fromTokenId_);
+	    uint256 toSlotId = ERC3525.slotOf(toTokenId_);
+	    
+	    require(slotId == toSlotId, 'SlotRegistry: transfer to token with different slot.');
+	    
+	    CreditType creditType = _contractType[msg.sender];
+	    CreditType toType = _contractType[_contractOfToken[toTokenId_]];
+	    
+	    require(creditType == toType, 'SlotRegistry: Cannot transfer between tokens holding different types of credit.');
+	    require(creditType != CreditType.time_, 'SlotRegistry: Network value transfer not allowed for priority tokens');
+	    
+	    
+	    if(creditType == CreditType.cash_){
+	        _cashValueTransfer(fromTokenId_, toTokenId_, value_);
+	    }else if(creditType == CreditType.time_){
+	        _timeValueTransfer(fromTokenId_, toTokenId_, value_);
+	    }else if(creditType == CreditType.items_){
+	        ERC3525.transferFrom(fromTokenId_, toTokenId_, value_);
+	    }
+	    
+    }
+    
+    
+    
+    
+    
     function tokenDiscount(uint256 toTokenId_) public view returns (uint256){
+        ERC3525._requireMinted(toTokenId_);
+        
 	    return _tokenDiscount[toTokenId_];
 	}
 	
