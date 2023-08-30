@@ -1,6 +1,6 @@
 # Meritic Smart contracts
 
-This repository includes Meritic's  implementation of  service smart contracts for creating stablecoin-backed Semi-Fungible tokens that hold time and service credits for creators and service providers. Our implementation adopts ERC-3525 Semi-Fungible Token standard. 
+This repository includes [Meritic ](/https://meritic.xyz)'s  implementation of  service smart contracts for creating stablecoin-backed Semi-Fungible tokens that hold time and service credits for creators and service providers. Our implementation adopts ERC-3525 Semi-Fungible Token standard. 
 Thus service contracts are ERC-3525 - compatible Ethereum smart contracts.   
 
 A creator configures and deploys his service contracts, enabling the creator / service  to issue credits, via tokens, to users, followers, or customers. Our implementation includes smart contracts for the following types of credits.
@@ -17,8 +17,16 @@ Development is on-going / incomplete.
 ## Documentation
 Visit for up to date docs: https://docs.meritic.xyz
 ## License
-[Business Source License 1.1](https://mariadb.com/bsl11/)  and  (see LICENSE.txt)
-[MIT License  ](https://github.com/solv-finance/erc-3525/blob/main/LICENSE)) 
+[Business Source License 1.1](https://mariadb.com/bsl11/) and [MIT License  ](https://github.com/solv-finance/erc-3525/blob/main/LICENSE))  (see LICENSE.txt)
+
+
+## Requirements
+Solidity 0.8 
+
+Hardhat 
+
+Node >= 19.2.0 
+
 ## Learn More
 [Meritic ](/https://meritic.xyz) 
 
