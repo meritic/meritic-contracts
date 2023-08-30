@@ -21,9 +21,9 @@ Visit for up to date docs: https://docs.meritic.xyz
 [MIT License  ](https://github.com/solv-finance/erc-3525/blob/main/LICENSE)) 
 
 ## Requirements
-Solidity 0.8
-Hardhat
-Node >= 19.2.0
+Solidity 0.8 \\
+Hardhat \\
+Node >= 19.2.0 \\
 
 ## Learn More
 [Meritic ](/https://meritic.xyz) 
