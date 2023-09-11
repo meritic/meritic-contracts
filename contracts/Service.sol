@@ -51,14 +51,15 @@ contract Service is ERC3525, AccessControl {
         		address slotRegistry_,
         		uint256 defaultSlot_,
         		string memory name_, 
-        		string memory symbol_, 
+        		string memory symbol_,
         		string memory baseuri_,
-        		string memory contractDescription_,
+        		string memory contractDescription_ ,
         		string memory contractImage_,
         		string memory contractType_,
-        		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
-        		    
-
+        		uint8 decimals_) ERC3525(name_, symbol_, 6) {
+      
+	
+        		
         _defaultSlot = defaultSlot_;
   		_slotRegistry = SlotRegistry(slotRegistry_);
   		_adminAddress = adminAddress_;
@@ -101,7 +102,6 @@ contract Service is ERC3525, AccessControl {
     
     function tokenURI(uint256 tokenId_) public view virtual override returns (string memory) {
         ERC3525._requireMinted(tokenId_);
-      
         return ServiceMetadataDescriptor(address(metadataDescriptor)).constructTokenURI2(tokenId_, balanceOf(tokenId_));
 
     }

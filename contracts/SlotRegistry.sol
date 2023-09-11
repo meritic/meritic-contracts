@@ -8,13 +8,15 @@ import "./ServiceMetadataDescriptor.sol";
 import "./Service.sol";
 
 
-contract SlotRegistry is ERC3525 {
+contract SlotRegistry is ERC3525, AccessControl {
 	
 	//bytes32 public constant NETWORK_TOKEN_ADMIN_ROLE = keccak256("NETWORK_TOKEN_ADMIN_ROLE");
 	
 	//mapping (uint256 => string) private _registry;  
     //mapping (uint256 => string) private _name;    
     //mapping (uint256 => string) private _description;
+    
+    bytes32 public constant MKT_ARBITRATOR_ROLE = keccak256("MKT_ARBITRATOR_ROLE");
     
     enum SlotType {contract_, network_, networkRevShare_ }
     enum CreditType {time_, cash_, items_, priority_}
@@ -53,13 +55,16 @@ contract SlotRegistry is ERC3525 {
     event NewSlot(uint256 slotId, string slotName);
     
     
-    constructor(string memory name_, 
+    constructor(address mktAdmin_,
+        		string memory name_, 
         		string memory symbol_, 
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_,
         		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
         		   
+       	_setupRole(MKT_ARBITRATOR_ROLE, mktAdmin_);
+       	
   		_baseuri = baseuri_;
         metadataDescriptor = new ServiceMetadataDescriptor(_baseuri, contractDescription_, contractImage_, address(this));
         emit MetadataDescriptor(address(metadataDescriptor));
@@ -68,7 +73,9 @@ contract SlotRegistry is ERC3525 {
     
     
     
-    
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC3525, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
     
     
     function registerContract(address adminAddress_, uint256 slot_, CreditType type_) external {
@@ -83,9 +90,29 @@ contract SlotRegistry is ERC3525 {
         
     }
     
+   
+    function registerSlot(address ctrctSvcAdminAdress_, uint256 slotId_, string memory slotName_,  string memory slotURI_, 
+        string memory description_, uint8 type_) external returns (bool){
+        
+        require(hasRole(MKT_ARBITRATOR_ROLE, msg.sender), 'Sender not authorized to register this slot');
+        SlotType stype;
+        
+        if(type_ == 0){
+            stype = SlotType.contract_;
+        }
+        Slot memory _newSlot = Slot({creator: ctrctSvcAdminAdress_, slotId: slotId_, name: slotName_, description: description_, slotURI: slotURI_, slotType: stype,  contracts: new address[](0)});
+        _registry[slotId_] = _newSlot;
+        _isSlotAdmin[slotId_][ctrctSvcAdminAdress_] = true; //(_registry[slotId_].slotId == slotId_);
+        
+        emit NewSlot(_registry[slotId_].slotId, _registry[slotId_].name);
+        
+        return _isSlotAdmin[slotId_][ctrctSvcAdminAdress_];
+    }
     
     
-    function registerSlot(uint256 slotId_, string memory slotName_,  string memory slotURI_, string memory description_, SlotType type_) external returns (bool){
+    
+    
+    /*function registerSlot(uint256 slotId_, string memory slotName_,  string memory slotURI_, string memory description_, SlotType type_) external returns (bool){
         require(!exists(slotId_), "Slot already registered");
 
 
@@ -97,9 +124,18 @@ contract SlotRegistry is ERC3525 {
         emit NewSlot(_registry[slotId_].slotId, _registry[slotId_].name);
         
         return _isSlotAdmin[slotId_][msg.sender];
+    }*/
+    
+    
+    function requestApprovalForSlot(uint256 slotId_) public  {
+        require(_isSlotAdmin[slotId_][msg.sender], "Sender not authorized to approve on this slot");
+        
+        //uint256 defaultSlot = _contractSlot[contract_];
+        address contractAdmin_ = Service(contract_).contractAdmin();
+        _isSlotAdmin[slotId_][contractAdmin_] = true;
+        
+        // emit event notfying approvial
     }
-    
-    
     
     function approveContractForSlot(address contract_, uint256 slotId_) public  {
         require(_isSlotAdmin[slotId_][msg.sender], "Sender not authorized to approve on this slot");

@@ -42,10 +42,12 @@ contract SpendCredit is Service {
         		string memory contractDescription_,
         		string memory contractImage_,
         		string memory valueToken_,
-        		uint8 decimals_) Service(serviceAdmin_, mktAdmin_, slotRegistryContract_, defaultSlot_, name_, symbol_, baseuri_, contractDescription_, contractImage_, 'cash', decimals_) {
+        		uint8 decimals_) Service(serviceAdmin_, mktAdmin_, slotRegistryContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'cash', decimals_) {
 
         if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
             _valueContract = WUSDC(underlyingContract_); 
+        }else{
+            revert("SpendCredit: Only USDC underlying accepted at this time");
         }
     
         _revenueAcct = revenueAcct_;
@@ -200,11 +202,9 @@ contract SpendCredit is Service {
 			
 			Service.transferFrom(netFromTokenId, toTokenId_, value_);
 			
-			if(address(this) != toContractAddress){
-			    _valueContract.transfer(toContractAddress, uValue);
-			}else{
-			    revert('YO');
-			}
+			
+			_valueContract.transfer(toContractAddress, uValue);
+			
 			
             emit ValueTransfer(fromTokenId_,  toTokenId_, value_);	
            

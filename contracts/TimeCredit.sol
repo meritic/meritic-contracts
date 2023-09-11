@@ -34,7 +34,7 @@ contract TimeCredit is Service {
 	string private _dispTimeUnit;
 	
 	
-	event MintTimeToken(uint256 value_seconds, uint256 value_unit);
+	event MintTimeToken(uint256 tokenId, uint256 valueSeconds, uint256 valueUnit);
 	
 	
 	
@@ -45,26 +45,28 @@ contract TimeCredit is Service {
         		address mktAdmin_,
         		uint256 defaultSlot_,
         		string memory name_, 
-        		string memory symbol_, 
-        		string memory baseuri_,
+        		string memory symbol_,
+        		string memory baseUri_,
         		string memory contractDescription_,
         		string memory contractImage_,
         		string memory dispTimeUnit_, 
         		string memory valueToken_, 
         		uint8 decimals_) 
-        		Service(serviceAdmin_, mktAdmin_, slotRegistry_, defaultSlot_, name_, symbol_, baseuri_, string(abi.encodePacked(contractDescription_, "\n Time units: ", dispTimeUnit_)) , contractImage_, 'time',  decimals_) {
-
-        		
+        		Service(serviceAdmin_, mktAdmin_, slotRegistry_, defaultSlot_, name_, symbol_, baseUri_, string(abi.encodePacked(contractDescription_, "\n Time units: " , dispTimeUnit_)), contractImage_, 'time',  decimals_) {
+				
         		_defaultSlot = defaultSlot_;
+        		
 				if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
 		            _valueContract = WUSDC(underlyingContract_); 
+		        }else{
+		            revert("SpendCredit: Only USDC underlying accepted at this time");
 		        }
-			        
+					        
        _revenueAcct = revenueAcct_;
        _dispTimeUnit = dispTimeUnit_;
        _decimals = decimals_;
+
 	}
-	
 	
 	
 	
@@ -111,8 +113,7 @@ contract TimeCredit is Service {
            
 		}
 	
-        			
- 		emit MintTimeToken(timeValueSeconds, timeValue_);
+ 		emit MintTimeToken(tokenId, timeValueSeconds, timeValue_);
  		
         _transferAllowed[tokenId] = transfersAllowed_;
         _minAllowedValueTransferSecs[tokenId] = toSeconds(minAllowedValueTransfer_);
@@ -131,6 +132,8 @@ contract TimeCredit is Service {
   	}
   	
   	
+
+    
   	
   	function toSeconds(uint256 timeValue_) private view returns (uint256){
   	    uint256 timeValueSeconds;

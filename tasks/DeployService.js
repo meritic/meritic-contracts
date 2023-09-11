@@ -22,13 +22,13 @@ const NETWORK_URL = `https://rpc-mumbai.maticvigil.com/v1`;
 
 
 task("DeployService", "Deploy Service contract")
-  .addPositionalParam("serviceAddress")
+  .addPositionalParam("adminAddress")
+  .addPositionalParam("mktAdminAddress")
+  .addPositionalParam("slotRegistryAddress")
+  .addPositionalParam("defaultSlot")
   .addPositionalParam("name")
   .addPositionalParam("symbol")
-  .addPositionalParam("baseuri")
-  .addPositionalParam("contractDescription")
-  .addPositionalParam("contractImage")
-  .addPositionalParam("decimals")
+  //.addPositionalParam("decimals")
   .setAction(async (args) => {
 
 
@@ -37,15 +37,15 @@ task("DeployService", "Deploy Service contract")
 
 	
 	const service = await ServiceToken.deploy(
-											args.serviceAddress,
-											registryAddress,
+											args.adminAddress,
+											args.mktAdminAddress,
+											args.slotRegistryAddress,
+											args.defaultSlot,
 											args.name,
-											args.symbol,
-											args.baseuri,
-											args.contractDescription,
-											args.contractImage,
+											args.symbol
+											/*args.contractImage,
 											WUSDCContractAddress,
-											parseInt(args.decimals));
+											parseInt(args.decimals)*/);
 	const hashOfTx = service.deployTransaction.hash	
    	await service.deployed();
    	

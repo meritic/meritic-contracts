@@ -3,6 +3,9 @@ const { task }  = require('hardhat/config');
 //const { ethers } = require('ethers');
 //const ethers = require('hardhat');
 //const { config } =  require('dotenv');
+const fs = require('fs');
+const path = require('path'); 
+
 
 const registryAddress = process.env.SLOT_REGISTRY_CONTRACT_ADDRESS;
 const WUSDCContractAddress = process.env.WUSDC_CONTRACT_ADDRESS;
@@ -11,20 +14,39 @@ const MERITIC_TEST_MKT_SERVICE_ADDRESS = process.env.MERITIC_TEST_MKT_SERVICE_AD
 const MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY = process.env.MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY;
 
 
+const getContractABI = async(contract) => {
+  try {
+	  const pathstr = `/meritic-contracts/artifacts/contracts/${contract}.sol/${contract}.json`;
+	  const filepath = path.join(process.env.MERITIC_DIR, pathstr);
+	  const file = fs.readFileSync(filepath, 'utf8');
+	  const json = await JSON.parse(file);
+	  const abi = json.abi;
+	  
+	  return abi;
+  } catch (e) {
+	  console.log(`e`, e);
+  }
+}
 
 const NETWORK_URL = `https://rpc-mumbai.maticvigil.com/v1`;
+
 //const provider = new ethers.providers.JsonRpcProvider(NETWORK_URL);
-//const wallet = new ethers.Wallet(MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY, provider);
-//var signer =  provider.getSigner(wallet.address);
+//const MKT_ADMIN_WALLET = new ethers.Wallet(MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY, provider);
+
+
+
+
 
 
 
 
 task("DeployTimeCredit", "Deploy Time contract")
-  .addPositionalParam("serviceAddress")
+  .addPositionalParam("revenueWallet")
+  .addPositionalParam("adminWallet")
+  .addPositionalParam("slotId")
   .addPositionalParam("name")
   .addPositionalParam("symbol")
-  //.addPositionalParam("baseuri")
+  .addPositionalParam("baseuri")
   .addPositionalParam("contractDescription")
   .addPositionalParam("contractImage")
   //.addPositionalParam("transfersAllowed")
@@ -37,20 +59,20 @@ task("DeployTimeCredit", "Deploy Time contract")
 
 
     const TimeCreditContract = await ethers.getContractFactory("TimeCredit");
-
-
-
-        				
 	const service = await TimeCreditContract.deploy(
-											args.serviceAddress,
+											args.revenueWallet,
+											args.adminWallet,
 											registryAddress,
+											WUSDCContractAddress,
+											MERITIC_TEST_MKT_SERVICE_ADDRESS,
+											args.slotId,
 											args.name,
 											args.symbol,
+											args.baseuri,
 											args.contractDescription,
 											args.contractImage,
 											args.dispTimeUnit,
 											args.valueToken,
-											WUSDCContractAddress,
 											args.decimals);
 	const hashOfTx = service.deployTransaction.hash	
    	await service.deployed();
@@ -65,5 +87,6 @@ task("DeployTimeCredit", "Deploy Time contract")
 
     console.log(JSON.stringify({contract_address: service.address, tx_receipt: tx_receipt, tx_hash: hashOfTx}));
 
+    
     
   });
