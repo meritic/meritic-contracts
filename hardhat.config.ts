@@ -11,6 +11,7 @@ import "./tasks/DeploySlotRegistry.js";
 import "./tasks/DeployService.js";
 import "./tasks/DeploySlotRegistry.js";
 import "./tasks/DeployTimeCredit.js";
+import "./tasks/DeployCashCredit.js";
 import "./tasks/DeployWUSDC.js";
 import "./tasks/DeployTestUSDC.js";
 import "./tasks/DeployTokenSwap.js";

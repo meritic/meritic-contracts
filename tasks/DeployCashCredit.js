@@ -35,7 +35,7 @@ const NETWORK_URL = `https://rpc-mumbai.maticvigil.com/v1`;
 
 
 
-task("DeployTimeCredit", "Deploy Time contract")
+task("DeployCashCredit", "Deploy Cash contract")
   .addPositionalParam("revenueWallet")
   .addPositionalParam("adminWallet")
   .addPositionalParam("slotId")
@@ -44,17 +44,15 @@ task("DeployTimeCredit", "Deploy Time contract")
   .addPositionalParam("baseuri")
   .addPositionalParam("contractDescription")
   .addPositionalParam("contractImage")
-  //.addPositionalParam("transfersAllowed")
-  //.addPositionalParam("minAllowedValueTransfer")
-  .addPositionalParam("dispTimeUnit")
   .addPositionalParam("valueToken")
-  //.addPositionalParam("moneyContractAddress")
   .addPositionalParam("decimals")
   .setAction(async (args) => {
 
 
-    const TimeCreditContract = await ethers.getContractFactory("TimeCredit");
-	const service = await TimeCreditContract.deploy(
+
+
+    const CashCreditContract = await ethers.getContractFactory("SpendCredit");
+	const service = await CashCreditContract.deploy(
 											args.revenueWallet,
 											args.adminWallet,
 											registryAddress,
@@ -66,22 +64,16 @@ task("DeployTimeCredit", "Deploy Time contract")
 											args.baseuri,
 											args.contractDescription,
 											args.contractImage,
-											args.dispTimeUnit,
 											args.valueToken,
 											args.decimals);
 	const hashOfTx = service.deployTransaction.hash	
    	await service.deployed();
    	
 
-  
-  	//var out = await mint_out.wait();
   	
     let tx_receipt = await service.provider.getTransactionReceipt(hashOfTx);
-    //const logs = service.events.MetadataDescriptor.processReceipt(tx_receipt)
   
 
     console.log(JSON.stringify({contract_address: service.address, tx_receipt: tx_receipt, tx_hash: hashOfTx}));
 
-    
-    
   });

@@ -29,6 +29,8 @@ contract SlotRegistry is ERC3525, AccessControl {
         string slotURI;
         SlotType slotType;
         address[] contracts;
+        bool joinByInvite;
+        bool valid;
         
     }
 
@@ -46,6 +48,8 @@ contract SlotRegistry is ERC3525, AccessControl {
     mapping(uint256 => mapping(address => bool)) private _inSlotNetwork;
     mapping(uint256 => mapping(address => bool)) private _isSlotAdmin;
   
+  	mapping(uint256 => mapping(address => address)) private _invited;
+  	
     
     string private _baseuri;    
     
@@ -80,6 +84,7 @@ contract SlotRegistry is ERC3525, AccessControl {
     
     function registerContract(address adminAddress_, uint256 slot_, CreditType type_) external {
         require(_isSlotAdmin[slot_][adminAddress_], "Contract admin is not authorized to register to this slot");
+        
         _registry[slot_].contracts.push(msg.sender);
         _contractType[msg.sender] = type_;
         _inSlotNetwork[slot_][msg.sender] = true;
@@ -90,9 +95,46 @@ contract SlotRegistry is ERC3525, AccessControl {
         
     }
     
+    
+    function slotInvite(uint256 slot_,  address invitee_)external {
+        require(_registry[slot_].valid, "Slot does not exist");
+        require(_isSlotAdmin[slot_][msg.sender], "Msg sender not authorized to invite to this slot");
+        
+        _invited[slot_][invitee_] = msg.sender;
+        
+    }
+   
+   function joinSlot(uint256 slot_)external {
+       
+       require(_registry[slot_].valid, "Slot does not exist");
+       
+       if(_registry[slot_].joinByInvite){
+           require(_invited[slot_][msg.sender] != address(0), "You have not been invited to join");
+       }
+       
+       _isSlotAdmin[slot_][msg.sender] = true;
+       
+   }
+   
+   
+   function joinSlot(uint256 slot_, address invitee_) external {
+       require(_registry[slot_].valid, "Slot does not exist");
+       require(hasRole(MKT_ARBITRATOR_ROLE, msg.sender), 'Sender not authorized to join address to a slot');
+       
+       
+       if(_registry[slot_].joinByInvite){
+           require(_invited[slot_][invitee_] != address(0), "You have not been invited to join");
+       }
+       
+       _isSlotAdmin[slot_][invitee_] = true;
+       
+   }
+   
+   
+   
    
     function registerSlot(address ctrctSvcAdminAdress_, uint256 slotId_, string memory slotName_,  string memory slotURI_, 
-        string memory description_, uint8 type_) external returns (bool){
+        string memory description_, uint8 type_, bool joinByInviteOnly_) external returns (bool){
         
         require(hasRole(MKT_ARBITRATOR_ROLE, msg.sender), 'Sender not authorized to register this slot');
         SlotType stype;
@@ -100,8 +142,11 @@ contract SlotRegistry is ERC3525, AccessControl {
         if(type_ == 0){
             stype = SlotType.contract_;
         }
-        Slot memory _newSlot = Slot({creator: ctrctSvcAdminAdress_, slotId: slotId_, name: slotName_, description: description_, slotURI: slotURI_, slotType: stype,  contracts: new address[](0)});
+        Slot memory _newSlot = Slot({creator: ctrctSvcAdminAdress_, slotId: slotId_, name: slotName_, 
+            description: description_, slotURI: slotURI_, slotType: stype,  contracts: new address[](0), 
+            joinByInvite: joinByInviteOnly_, valid: true});
         _registry[slotId_] = _newSlot;
+        
         _isSlotAdmin[slotId_][ctrctSvcAdminAdress_] = true; //(_registry[slotId_].slotId == slotId_);
         
         emit NewSlot(_registry[slotId_].slotId, _registry[slotId_].name);
@@ -111,6 +156,9 @@ contract SlotRegistry is ERC3525, AccessControl {
     
     
     
+    function isSlotAdmin(uint256 slotId_, address adminAdress_) public view returns(bool) {
+        return _isSlotAdmin[slotId_][adminAdress_];
+    }
     
     /*function registerSlot(uint256 slotId_, string memory slotName_,  string memory slotURI_, string memory description_, SlotType type_) external returns (bool){
         require(!exists(slotId_), "Slot already registered");
@@ -127,7 +175,7 @@ contract SlotRegistry is ERC3525, AccessControl {
     }*/
     
     
-    function requestApprovalForSlot(uint256 slotId_) public  {
+    /*function requestApprovalForSlot(uint256 slotId_) public  {
         require(_isSlotAdmin[slotId_][msg.sender], "Sender not authorized to approve on this slot");
         
         //uint256 defaultSlot = _contractSlot[contract_];
@@ -135,7 +183,7 @@ contract SlotRegistry is ERC3525, AccessControl {
         _isSlotAdmin[slotId_][contractAdmin_] = true;
         
         // emit event notfying approvial
-    }
+    }*/
     
     function approveContractForSlot(address contract_, uint256 slotId_) public  {
         require(_isSlotAdmin[slotId_][msg.sender], "Sender not authorized to approve on this slot");

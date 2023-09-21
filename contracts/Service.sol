@@ -45,7 +45,7 @@ contract Service is ERC3525, AccessControl {
 	event MetadataDescriptor(address  contractAddress);
 	event ValueTransfer(uint256 fromTokenId,  uint256 toTokenId, uint256 value);
 
-
+	
     constructor(address adminAddress_,
         		address mktAdmin_,
         		address slotRegistry_,
@@ -70,6 +70,7 @@ contract Service is ERC3525, AccessControl {
   									SlotRegistry.CreditType.priority_ );
   						
   		_slotRegistry.registerContract(adminAddress_, defaultSlot_, _contractType);
+  		
         metadataDescriptor = new ServiceMetadataDescriptor(baseuri_, contractDescription_, contractImage_, slotRegistry_);
         
         _setupRole(MKT_ARBITRATOR_ROLE, mktAdmin_);
@@ -81,6 +82,10 @@ contract Service is ERC3525, AccessControl {
     
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC3525, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
+    }
+    
+    function defaultSlot() public view returns (uint256) {
+        return _defaultSlot;
     }
     
     

@@ -28,7 +28,7 @@ contract SpendCredit is Service {
 	
 	
 	
-	
+
 
     constructor(address revenueAcct_,
         		address serviceAdmin_,
