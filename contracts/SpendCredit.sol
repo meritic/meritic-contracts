@@ -69,31 +69,31 @@ contract SpendCredit is Service {
         			uint256 etherizedDiscountBasisPts_,
         			string memory uuid_,
         			string memory tokenDescription_,
-        			string memory tokenImage_
+        			string memory tokenImage_,
+        			string memory property_
     ) public virtual returns (uint256) {
  
        
        uint256 tokenId;
+       
        if(slot_ == _defaultSlot){
-           
-           tokenId = Service.mint(owner_, slot_, value_, uuid_, tokenDescription_, tokenImage_);
-           emit MintSpendToken(tokenId, slot_, value_);
+           tokenId = Service.mint(owner_, slot_, value_, uuid_, tokenDescription_, tokenImage_, property_);
        }else{
-           uint256 regTokenId = Service.networkMintWithDiscount(owner_, slot_, value_, etherizedDiscountBasisPts_, uuid_, tokenDescription_, tokenImage_);
-           tokenId = ERC3525._createOriginalTokenId();
-           networkTokenId[tokenId] = regTokenId;
-           emit MintNetworkServiceToken(regTokenId, slot_, value_);
-          
+           tokenId = Service.networkMintWithDiscount(owner_, slot_, value_, etherizedDiscountBasisPts_, uuid_, tokenDescription_, tokenImage_, property_);
+           emit MintNetworkServiceToken(networkTokenId[tokenId], slot_, value_);
        }
        
+       emit MintSpendToken(tokenId, slot_, value_);
+       
        _totalBalance += value_;
+       
        _tokenDiscount[tokenId] = etherizedDiscountBasisPts_;  
        
        uint256 tenKBasisPts = 10000;
        uint256 uValue = (tenKBasisPts - _tokenDiscount[tokenId] / (10 ** _decimals)) * value_ / tenKBasisPts;
+       
        _valueContract.mint(address(this), slot_, uValue);
-       
-       
+    	
 	   return tokenId;
   	}
   
@@ -105,11 +105,15 @@ contract SpendCredit is Service {
         			uint256 value_,
         			string memory uuid_,
         			string memory tokenDescription_,
-        			string memory tokenImage_
+        			string memory tokenImage_,
+        			string memory property_
     ) public virtual override returns (uint256) {
         uint256 discountBasisPts_ = 0;
 
-        uint256 tokenId = mintWithDiscount(owner_, slot_, value_, discountBasisPts_, uuid_, tokenDescription_, tokenImage_);
+        uint256 tokenId = mintWithDiscount(owner_, slot_, value_, discountBasisPts_, uuid_, tokenDescription_, tokenImage_, property_);
+        
+        
+  
         emit MintSpendToken(tokenId, slot_, value_);
         return tokenId;
        

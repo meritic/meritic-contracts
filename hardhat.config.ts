@@ -30,8 +30,8 @@ const config: HardhatUserConfig = {
 		  viaIR: true,
 	   }
   },
-  defaultNetwork: "hardhat", 
-  //defaultNetwork: "polygon_mumbai",
+  //defaultNetwork: "hardhat", 
+  defaultNetwork: "polygon_mumbai",
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,

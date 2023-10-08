@@ -97,7 +97,7 @@ contract Service is ERC3525, AccessControl {
    
     
 	function contractURI() public view virtual override returns (string memory) {
-        return ServiceMetadataDescriptor(address(metadataDescriptor)).constructContractURI2();
+        return ServiceMetadataDescriptor(address(metadataDescriptor)).constructContractURI();
     }
     
     
@@ -107,7 +107,7 @@ contract Service is ERC3525, AccessControl {
     
     function tokenURI(uint256 tokenId_) public view virtual override returns (string memory) {
         ERC3525._requireMinted(tokenId_);
-        return ServiceMetadataDescriptor(address(metadataDescriptor)).constructTokenURI2(tokenId_, balanceOf(tokenId_));
+        return ServiceMetadataDescriptor(address(metadataDescriptor)).constructTokenURI(tokenId_);
 
     }
     
@@ -123,6 +123,11 @@ contract Service is ERC3525, AccessControl {
 	}
 	
 	
+	
+	
+	
+	
+	
 	function creditType() public view returns (string memory) {
 	    string memory ctype;
 	    ctype = (_contractType == SlotRegistry.CreditType.priority_ ? 'priority' :
@@ -136,8 +141,9 @@ contract Service is ERC3525, AccessControl {
         			uint256 slot_, 
         			uint256 value_,
         			string memory uuid_,
-        			string memory token_description_,
-        			string memory token_image_
+        			string memory tokenDescription_,
+        			string memory tokenImage_,
+        			string memory property_
     ) public virtual returns (uint256) {
         
         uint256 tokenId = ERC3525._createOriginalTokenId();
@@ -147,8 +153,9 @@ contract Service is ERC3525, AccessControl {
         
         
     	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(tokenId, uuid_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(tokenId, token_description_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(tokenId, token_image_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(tokenId, tokenDescription_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(tokenId, tokenImage_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenProperty(tokenId, property_);
     	
         emit MintServiceToken(tokenId, slot_, value_);
 
@@ -157,35 +164,47 @@ contract Service is ERC3525, AccessControl {
   	
   	
   	function networkMintWithDiscount(address owner_, uint256 slot_, uint256 value_, uint256 discountBasisPts_,
-        			string memory uuid_, string memory tokenDescription_, string memory tokenImage_) public virtual returns (uint256) {
+        			string memory uuid_, string memory tokenDescription_, string memory tokenImage_, string memory property_) public virtual returns (uint256) {
         			    
         //uint256 decimals = ERC3525.valueDecimals();
     	
+    	uint256 tokenId = ERC3525._createOriginalTokenId();
+           
+           
     	uint256 regTokenId = _slotRegistry.mintWithDiscount(owner_, slot_, value_, discountBasisPts_);
         
-        ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(regTokenId, uuid_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(regTokenId, tokenDescription_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(regTokenId, tokenImage_);
+        networkTokenId[tokenId] = regTokenId;
+        
+        ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(tokenId, uuid_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(tokenId, tokenDescription_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(tokenId, tokenImage_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenProperty(tokenId, property_);
     	
     	
-        return regTokenId;
+        return tokenId;
         			    
  	}
  	
  	
  	
  	function networkMintWithTVRate(address owner_, uint256 slot_, uint256 value_, uint256 tVRate_,
-        			string memory uuid_, string memory token_description_, string memory token_image_) public returns (uint256) {
+        			string memory uuid_, string memory tokenDescription_, string memory tokenImage_, string memory property_) public returns (uint256) {
+        			    
         uint256 decimals = ERC3525.valueDecimals();
         
         
     	uint256 regTokenId = _slotRegistry.mintWithTVRate(owner_, slot_, value_, tVRate_ / (10  ** decimals));
         
-        ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(regTokenId, uuid_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(regTokenId, token_description_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(regTokenId, token_image_);
+        uint256 tokenId = ERC3525._createOriginalTokenId();
+        
+        networkTokenId[tokenId] = regTokenId;
+         
+        ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(tokenId, uuid_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(tokenId, tokenDescription_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(tokenId, tokenImage_);
+    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenProperty(tokenId, property_);
     	
-        return regTokenId;
+        return tokenId;
         			    
  	}
  	

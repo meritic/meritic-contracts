@@ -104,7 +104,7 @@ contract SlotRegistry is ERC3525, AccessControl {
         
     }
    
-   function joinSlot(uint256 slot_)external {
+   function joinSlot(uint256 slot_) external {
        
        require(_registry[slot_].valid, "Slot does not exist");
        
@@ -117,7 +117,7 @@ contract SlotRegistry is ERC3525, AccessControl {
    }
    
    
-   function joinSlot(uint256 slot_, address invitee_) external {
+   function adminJoinSlot(uint256 slot_, address invitee_) external {
        require(_registry[slot_].valid, "Slot does not exist");
        require(hasRole(MKT_ARBITRATOR_ROLE, msg.sender), 'Sender not authorized to join address to a slot');
        

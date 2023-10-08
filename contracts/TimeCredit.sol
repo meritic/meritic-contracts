@@ -80,6 +80,7 @@ contract TimeCredit is Service {
         			string memory uuid_,
         			string memory tokenDescription_,
         			string memory tokenImage_,
+        			string memory property_,
         			bool transfersAllowed_,
         			uint256 minAllowedValueTransfer_
     ) public virtual returns (uint256) {
@@ -105,12 +106,10 @@ contract TimeCredit is Service {
 		uint256 tokenId;
 		
 		if(slotId_ == _defaultSlot){
-		    tokenId = super.mint(owner_, slotId_, timeValueSeconds, uuid_, tokenDescription_, tokenImage_);
+		    tokenId = super.mint(owner_, slotId_, timeValueSeconds, uuid_, tokenDescription_, tokenImage_, property_);
 		}else{
-		    uint256 regTokenId = Service.networkMintWithTVRate(owner_, slotId_, timeValueSeconds, tVRate, uuid_, tokenDescription_, tokenImage_);
-           	tokenId = ERC3525._createOriginalTokenId();
-           	networkTokenId[tokenId] = regTokenId;
-           
+		    tokenId = Service.networkMintWithTVRate(owner_, slotId_, timeValueSeconds, tVRate, uuid_, tokenDescription_, tokenImage_, property_);
+
 		}
 	
  		emit MintTimeToken(tokenId, timeValueSeconds, timeValue_);

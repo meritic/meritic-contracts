@@ -43,11 +43,12 @@ contract OrderCredit is Service {
         			uint256 slot_, 
         			uint256 value_,
         			string memory uuid_,
-        			string memory token_description_,
-        			string memory token_image_
+        			string memory tokenDescription_,
+        			string memory tokenImage_,
+        			string memory property_
     ) public virtual override returns (uint256) {
         require(value_ == totalSupply(), 'OrderCredit: New tokens can only mint to the end of the list');
-        uint256 tokenId = super.mint(owner_, slot_, value_, uuid_, token_description_, token_image_);
+        uint256 tokenId = Service.mint(owner_, slot_, value_, uuid_, tokenDescription_, tokenImage_, property_);
 		_tokenQ.push(tokenId);
 	   return tokenId;
   	}
@@ -56,11 +57,12 @@ contract OrderCredit is Service {
   	function enqueue(address owner_, 
         			uint256 slot_, 
         			string memory uuid_,
-        			string memory token_description_,
-        			string memory token_image_) public virtual returns (uint256) {
+        			string memory tokenDescription_,
+        			string memory tokenImage_,
+        			string memory property_) public virtual returns (uint256) {
     	uint256 position = totalSupply();
     	
-    	return mint(owner_, slot_, position, uuid_, token_description_, token_image_);
+    	return mint(owner_, slot_, position, uuid_, tokenDescription_, tokenImage_, property_);
     }
   	
   	
