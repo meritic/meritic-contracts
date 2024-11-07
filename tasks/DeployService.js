@@ -12,7 +12,7 @@ const MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY = process.env.MERITIC_TEST_MKT_SERVIC
 
 
 
-const NETWORK_URL = `https://rpc-mumbai.maticvigil.com/v1`;
+//const NETWORK_URL = `https://rpc-mumbai.maticvigil.com/v1`;
 //const provider = new ethers.providers.JsonRpcProvider(NETWORK_URL);
 //const wallet = new ethers.Wallet(MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY, provider);
 //var signer =  provider.getSigner(wallet.address);

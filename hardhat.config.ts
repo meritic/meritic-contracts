@@ -6,15 +6,18 @@ import type { HardhatUserConfig } from "hardhat/types";
 import "@nomiclabs/hardhat-truffle5";
 import "@nomiclabs/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
-import "./tasks/DeploySlotRegistry.js";
-
+import "./tasks/DeployPool.js";
 import "./tasks/DeployService.js";
-import "./tasks/DeploySlotRegistry.js";
+import "./tasks/DeployRegistry.js";
 import "./tasks/DeployTimeCredit.js";
 import "./tasks/DeployCashCredit.js";
 import "./tasks/DeployWUSDC.js";
 import "./tasks/DeployTestUSDC.js";
 import "./tasks/DeployTokenSwap.js";
+import "./tasks/DeployUtil.js";
+import "./tasks/DeployQueue.js";
+import "./tasks/DeployMessenger.js";
+import "./tasks/DeployOffering.js";
 
 
 const privatekey = process.env.MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY;
@@ -30,16 +33,17 @@ const config: HardhatUserConfig = {
 		  viaIR: true,
 	   }
   },
-  //defaultNetwork: "hardhat", 
-  defaultNetwork: "polygon_mumbai",
+  defaultNetwork: "hardhat", 
+  //defaultNetwork: "polygon_mumbai",
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
-    polygon_mumbai: {
-		chainId: 80001,
-		url: "https://rpc-mumbai.maticvigil.com",
+    polygon_amoy: {
+		chainId: 80002,
+		url: "https://rpc-amoy.polygon.technology",
 		accounts: [ privatekey ],
+		gasPrice: 35000000000,
 		allowUnlimitedContractSize: true
 	}
   },

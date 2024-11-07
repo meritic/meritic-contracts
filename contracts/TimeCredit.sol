@@ -4,8 +4,8 @@ pragma solidity ^0.8.9;
 //import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Service.sol";
 import "./underlying/WUSDC.sol";
-import "./SlotRegistry.sol";
-
+import "./Registry.sol";
+import "./Pool.sol";
 
 
 
@@ -23,7 +23,7 @@ contract TimeCredit is Service {
 	mapping(uint256 => bool) private _transferAllowed;
 	mapping(uint256 => uint256) private _minAllowedValueTransferSecs;
 	
-	
+	Pool internal _poolContract;
 	
 	address private _revenueAcct;
 	Underlying private _valueContract;
@@ -41,6 +41,7 @@ contract TimeCredit is Service {
 	constructor(address revenueAcct_,
         		address serviceAdmin_,
         		address slotRegistry_,
+        		address poolContract_,
         		address underlyingContract_,
         		address mktAdmin_,
         		uint256 defaultSlot_,
@@ -52,7 +53,7 @@ contract TimeCredit is Service {
         		string memory dispTimeUnit_, 
         		string memory valueToken_, 
         		uint8 decimals_) 
-        		Service(serviceAdmin_, mktAdmin_, slotRegistry_, defaultSlot_, name_, symbol_, baseUri_, string(abi.encodePacked(contractDescription_, "\n Time units: " , dispTimeUnit_)), contractImage_, 'time',  decimals_) {
+        		Service(serviceAdmin_, mktAdmin_, slotRegistry_, poolContract_, underlyingContract_, defaultSlot_, name_, symbol_, baseUri_, string(abi.encodePacked(contractDescription_, "\n Time units: " , dispTimeUnit_)), contractImage_, 'time',  decimals_) {
 				
         		_defaultSlot = defaultSlot_;
         		
@@ -65,7 +66,8 @@ contract TimeCredit is Service {
        _revenueAcct = revenueAcct_;
        _dispTimeUnit = dispTimeUnit_;
        _decimals = decimals_;
-
+       
+       _poolContract = Pool(poolContract_);
 	}
 	
 	
@@ -88,10 +90,11 @@ contract TimeCredit is Service {
         			
         uint256 timeValueSeconds;
         
-       
+       	uint256 tokenId;
 		
 		timeValueSeconds = toSeconds(timeValue_);
 		
+	
  		require(validStart_ <= validExpiration_, "TimeCredit: valid start time must be less than expiration time");
  		require(block.timestamp <= validExpiration_, "TimeCredit: cannot mint an expired token");
  		require(
@@ -100,18 +103,18 @@ contract TimeCredit is Service {
  		    			"TimeCredit: time value cannot exceed valid period"
  		);
  		
+ 		
 		_valueContract.mint(address(this), slotId_, paidValue_);
 		
 		uint256 tVRate = (paidValue_ * (10 ** _decimals) / timeValueSeconds);
-		uint256 tokenId;
 		
 		if(slotId_ == _defaultSlot){
 		    tokenId = super.mint(owner_, slotId_, timeValueSeconds, uuid_, tokenDescription_, tokenImage_, property_);
 		}else{
-		    tokenId = Service.networkMintWithTVRate(owner_, slotId_, timeValueSeconds, tVRate, uuid_, tokenDescription_, tokenImage_, property_);
+		    tokenId = Service.networkMintWithValueRate(owner_, slotId_, timeValueSeconds, tVRate, uuid_, tokenDescription_, tokenImage_, property_);
 
 		}
-	
+		
  		emit MintTimeToken(tokenId, timeValueSeconds, timeValue_);
  		
         _transferAllowed[tokenId] = transfersAllowed_;
@@ -126,7 +129,7 @@ contract TimeCredit is Service {
         });
   
   		tokenPeriod[tokenId] = period;
- 		
+ 	
 	    return tokenId;
   	}
   	
@@ -223,10 +226,10 @@ contract TimeCredit is Service {
 		    
 		    super.transferFrom(fromTokenId_, toTokenId_, valueSeconds);
 		    
-		    address toContractAddress = _slotRegistry.contractOf(toTokenId_);
+		    address toContractAddress = _poolContract.contractOf(toTokenId_);
 		    uint256 networkTokenId = networkTokenId[fromTokenId_];
 		    
-		    uint256 tVRate = (networkTokenId != 0) ? _slotRegistry.timeValueRate(networkTokenId) : _slotRegistry.timeValueRate(fromTokenId_);
+		    uint256 tVRate = (networkTokenId != 0) ? _poolContract.tokenValueRate(networkTokenId) : _poolContract.tokenValueRate(fromTokenId_);
 		    
 		    
 		    
@@ -266,9 +269,9 @@ contract TimeCredit is Service {
 	   }else if(isInternalToken(tokenId_)){
 	       uint256 netTokenId = networkTokenId[tokenId_];
 	       if(netTokenId != 0){
-	           uValue = _slotRegistry.timeValueRate(netTokenId) * valueSeconds_ / (10 ** _decimals); 
+	           uValue = _poolContract.tokenValueRate(netTokenId) * valueSeconds_ / (10 ** _decimals); 
 	       }else{
-	           uValue = _slotRegistry.timeValueRate(tokenId_) * valueSeconds_ / (10 ** _decimals); 
+	           uValue = _poolContract.tokenValueRate(tokenId_) * valueSeconds_ / (10 ** _decimals); 
 	       }
 	   }
 	   

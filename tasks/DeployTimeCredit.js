@@ -28,16 +28,16 @@ const getContractABI = async(contract) => {
   }
 }
 
-const NETWORK_URL = `https://rpc-mumbai.maticvigil.com/v1`;
-
-
 
 
 
 
 task("DeployTimeCredit", "Deploy Time contract")
   .addPositionalParam("revenueWallet")
-  .addPositionalParam("adminWallet")
+  .addPositionalParam("registryAddress")
+  .addPositionalParam("poolAddress")
+  .addPositionalParam("underlyingValueAddress")
+  .addPositionalParam("mktAdminAddress")
   .addPositionalParam("slotId")
   .addPositionalParam("name")
   .addPositionalParam("symbol")
@@ -56,10 +56,10 @@ task("DeployTimeCredit", "Deploy Time contract")
     const TimeCreditContract = await ethers.getContractFactory("TimeCredit");
 	const service = await TimeCreditContract.deploy(
 											args.revenueWallet,
-											args.adminWallet,
-											registryAddress,
-											WUSDCContractAddress,
-											MERITIC_TEST_MKT_SERVICE_ADDRESS,
+											args.registryAddress,
+											args.poolAddress,
+											args.underlyingValueAddress,
+											args.mktAdminAddress,
 											args.slotId,
 											args.name,
 											args.symbol,

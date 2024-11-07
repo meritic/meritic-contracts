@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 
 import "@solvprotocol/erc-3525/periphery/ERC3525MetadataDescriptor.sol";
-import "./SlotRegistry.sol";
+import "./Pool.sol";
 //import "./Service.sol";
 
 
@@ -22,7 +22,7 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
   using Strings for uint256;
     
-    SlotRegistry sr;
+    Pool pl;
     
     string private _baseURI;
     string private _contractDesc;
@@ -37,11 +37,11 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
     
     constructor(string memory baseURI_, string memory contractDescription_, 
-        				string memory contractImage_, address slotRegistry_) ERC3525MetadataDescriptor() {
+        				string memory contractImage_, address pool_) ERC3525MetadataDescriptor() {
 		_baseURI = baseURI_;
 		_contractDesc = contractDescription_;
 		contractImage = contractImage_;
-		sr = SlotRegistry(slotRegistry_);
+		pl = Pool(pool_);
     }
     
     
@@ -51,7 +51,7 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
     
     
-    /*function constructTokenURI(uint256 tokenId_) external view override returns (string memory) {
+    /*function constructTokenURI(uint256 tokenId_) external view virtual override returns (string memory) {
         IERC3525Metadata erc3525 = IERC3525Metadata(msg.sender);
         return 
             string(
@@ -161,21 +161,21 @@ contract ServiceMetadataDescriptor is ERC3525MetadataDescriptor {
     
     
     function _slotName(uint256 slot_) internal view virtual override returns (string memory) {
-		return sr.slotName(slot_);
+		return pl.slotName(slot_);
     }
  
     
     function _slotDescription(uint256 slot_) internal view override returns (string memory) {
-        return sr.slotDescription(slot_);
+        return pl.slotDescription(slot_);
     }
     
 
     function _slotImage(uint256 slot_) internal view virtual override returns (bytes memory) {
-        return abi.encodePacked(sr.slotURI(slot_), "/image");
+        return abi.encodePacked(pl.slotURI(slot_), "/image");
     }
     
     function _slotProperties(uint256 slot_) internal view virtual override returns (string memory) {
-        return string(abi.encodePacked(sr.slotURI(slot_), "/properties.json"));
+        return string(abi.encodePacked(pl.slotURI(slot_), "/properties.json"));
     }
     
     

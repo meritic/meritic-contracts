@@ -19,7 +19,7 @@ contract SlotRegistry is ERC3525, AccessControl {
     bytes32 public constant MKT_ARBITRATOR_ROLE = keccak256("MKT_ARBITRATOR_ROLE");
     
     enum SlotType {contract_, network_, networkRevShare_ }
-    enum CreditType {time_, cash_, items_, priority_}
+    enum CreditType {time_, cash_, counts_, priority_}
     
     struct Slot {
     	address creator;
@@ -43,7 +43,9 @@ contract SlotRegistry is ERC3525, AccessControl {
     //mapping(address => uint256) private _contractSlot;
     
     mapping(uint256 => uint256) private _tokenDiscount;
-    mapping(uint256 => uint256) private _tokenTVRate;
+    mapping(uint256 => uint256) private _tokenValueRate;
+
+    
     
     mapping(uint256 => mapping(address => bool)) private _inSlotNetwork;
     mapping(uint256 => mapping(address => bool)) private _isSlotAdmin;
@@ -248,20 +250,15 @@ contract SlotRegistry is ERC3525, AccessControl {
     }
     
     
-    
-    
-    
-    function mintWithTVRate(address owner_, uint256 slot_, uint256 value_, uint256 adjTVRate_) public returns (uint256) {
+
+    function mintWithValueRate(address owner_, uint256 slot_, uint256 value_, uint256 adjTVRate_) public returns (uint256) {
         
         uint256 tokenId = ERC3525._createOriginalTokenId();
         ERC3525._mint(owner_, tokenId, slot_, value_);
-        _tokenTVRate[tokenId] = adjTVRate_;
+        _tokenValueRate[tokenId] = adjTVRate_;
         
         return tokenId;
     }
-    
-    
-    
     
     
     
@@ -324,7 +321,7 @@ contract SlotRegistry is ERC3525, AccessControl {
     ) internal {
         uint256 toTokenValue = ERC3525.balanceOf(toTokenId_);
   	    
-  	    _tokenTVRate[toTokenId_] = (_tokenTVRate[fromTokenId_] * value_ + _tokenTVRate[toTokenId_] * toTokenValue) / (value_ + toTokenValue);
+  	    _tokenValueRate[toTokenId_] = (_tokenValueRate[fromTokenId_] * value_ + _tokenValueRate[toTokenId_] * toTokenValue) / (value_ + toTokenValue);
         
         super.transferFrom(fromTokenId_, toTokenId_, value_);
     }
@@ -355,7 +352,7 @@ contract SlotRegistry is ERC3525, AccessControl {
 	        _cashValueTransfer(fromTokenId_, toTokenId_, value_);
 	    }else if(creditType == CreditType.time_){
 	        _timeValueTransfer(fromTokenId_, toTokenId_, value_);
-	    }else if(creditType == CreditType.items_){
+	    }else if(creditType == CreditType.counts_){
 	        ERC3525.transferFrom(fromTokenId_, toTokenId_, value_);
 	    }
 	    
@@ -371,8 +368,8 @@ contract SlotRegistry is ERC3525, AccessControl {
 	    return _tokenDiscount[toTokenId_];
 	}
 	
-	function timeValueRate(uint256 toTokenId_) public view returns (uint256){
-	    return _tokenTVRate[toTokenId_];
+	function tokenValueRate(uint256 toTokenId_) public view returns (uint256){
+	    return _tokenValueRate[toTokenId_];
 	}
 
 }

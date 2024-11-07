@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 
 
 import "./Service.sol";
-
+import "./Pool.sol";
 
 
 
@@ -16,13 +16,15 @@ contract OrderCredit is Service {
     
 
 	uint256[] private _tokenQ; 
-	
+	Pool internal _poolContract;
 	
 
         		
     constructor(address revenueAddress_,
         		address adminAddress_,
         		address slotRegistry_,
+        		address poolContract_,
+        		address underlyingContract_,
         		address mktAdmin_,
         		uint256 defaultSlot_,
         		string memory name_, 
@@ -30,7 +32,7 @@ contract OrderCredit is Service {
         		string memory baseUri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		uint8 decimals_) Service(adminAddress_, mktAdmin_, slotRegistry_, defaultSlot_, name_, symbol_ , baseUri_, contractDescription_ , contractImage_, 'priority', decimals_) {
+        		uint8 decimals_) Service(adminAddress_, mktAdmin_, slotRegistry_, poolContract_, underlyingContract_, defaultSlot_, name_, symbol_ , baseUri_, contractDescription_ , contractImage_, 'priority', decimals_) {
 
     }
     
