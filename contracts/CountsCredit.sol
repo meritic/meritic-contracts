@@ -3,7 +3,7 @@
 pragma solidity ^0.8.9;
 
 
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; 
 import "./Service.sol";
 import "./Pool.sol";
 
@@ -17,23 +17,25 @@ contract CountsCredit is Service {
     
 	uint256 _decimals;
 	Underlying private _valueContract;
+	IERC20 private _underlyingUSDC;
 	address _revenueAcct;
 	uint256 _totalBalance;
 	mapping(uint256 => uint256) private _countValueRate;
 	
 	event MintNetworkServiceToken(uint256  tokenId, uint256 slot, uint256 value);
 	event MintCountsToken(uint256  tokenId, uint256 slot, uint256 value);
+	event CreditsConsumed(uint256 indexed tokenId, uint256 consumedValue, uint256 underlyingBurntValue);
+	
 	
 	Pool internal _poolContract;
 	
 	
 
-
     constructor(address revenueAcct_,
-        		address serviceAdmin_,
         		address slotRegistryContract_,
         		address poolContract_,
-        		address underlyingContract_,
+        		address valueContract_,
+        		address USDContract_,
         		address mktAdmin_,
         		uint256 defaultSlot_,
         		string memory name_, 
@@ -41,18 +43,47 @@ contract CountsCredit is Service {
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		string memory valueToken_, uint8 decimals_) Service(serviceAdmin_, mktAdmin_, slotRegistryContract_, poolContract_, underlyingContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'counts', decimals_) {
+        		string memory valueToken_, 
+        		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, valueContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'counts', decimals_) {
 
-        if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
-            _valueContract = WUSDC(underlyingContract_); 
-        }else{
-            revert("CashCredit: Only USDC underlying accepted at this time");
-        }
-    
+		_underlyingUSDC = IERC20(USDContract_); 
+        _valueContract = WUSDC(valueContract_);
+        
+
         _revenueAcct = revenueAcct_;
         _decimals = decimals_;
         _poolContract = Pool(poolContract_);
     }
+    
+    
+    /**
+	 * @notice Allows a service admin to consume a specified value of credits from a token.
+	 * @dev This should be called by the trusted backend service wallet.
+	 * @param tokenId_ The ID of the token from which to consume credits.
+	 * @param value_ The amount of credits to consume (in the token's native decimals).
+	 */
+	function consumeCredits(uint256 tokenId_, uint256 value_) external {
+	    require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a service admin");
+	    require(balanceOf(tokenId_) >= value_, "Insufficient credit balance");
+	
+	    uint256 uValue; 
+	    if (isContractToken(tokenId_)) {
+	        uValue = _countValueRate[tokenId_] * value_ / (10**_decimals);
+	    } else if (isInternalToken(tokenId_)) {
+	        uint256 netTokenId = networkTokenId[tokenId_];
+	        uint256 rate = (netTokenId != 0) ? _poolContract.tokenValueRate(netTokenId) : _poolContract.tokenValueRate(tokenId_);
+	        uValue = rate * value_ / (10**_decimals);
+	    } else {
+	        revert("Token is not recognized");
+	    }
+	
+	    super._burnValue(tokenId_, value_);
+	    _valueContract.burn(address(this), slotOf(tokenId_), uValue);
+
+	    _totalBalance -= value_;
+	
+	    emit CreditsConsumed(tokenId_, value_, uValue);
+	}
     
     
     
@@ -71,6 +102,7 @@ contract CountsCredit is Service {
         			string memory property_
     ) public virtual returns (uint256) {
  
+       _underlyingUSDC.transferFrom(msg.sender, address(this), paidValue_);
        
        uint256 tokenId;
        uint256 countRate = paidValue_ * (10 ** _decimals) / countValue_;
@@ -88,7 +120,7 @@ contract CountsCredit is Service {
        
        _countValueRate[tokenId] = countRate;
        _valueContract.mint(address(this), slot_, paidValue_);
-
+  
 
 	   return tokenId;
   	}
@@ -114,10 +146,13 @@ contract CountsCredit is Service {
 	           uValue = _poolContract.tokenValueRate(tokenId_) * value_ / (10 ** _decimals); 
 	       }
 	   }
-	   
-	   _valueContract.redeem(_revenueAcct, slotId_, uValue);
-	   _totalBalance -= value_;
 	   super._burnValue(tokenId_, value_);
+	   _valueContract.burn(address(this), slotId_, uValue);
+	   
+	   _underlyingUSDC.transfer(msg.sender, uValue);
+	   
+	   _totalBalance -= value_;
+	   
 	}
     
     
@@ -128,7 +163,6 @@ contract CountsCredit is Service {
         uint256 value_
     ) public payable virtual override returns (uint256) {
         return super.transferFrom(fromTokenId_, to_, value_);
-        //address fromOwnerAddress = _allTokens[_allTokensIndex[fromTokenId_]].owner;
     }
 
 

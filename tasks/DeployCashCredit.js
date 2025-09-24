@@ -7,6 +7,11 @@ const fs = require('fs');
 const path = require('path'); 
 
 
+
+
+
+
+
 const registryAddress = process.env.SLOT_REGISTRY_CONTRACT_ADDRESS;
 const WUSDCContractAddress = process.env.WUSDC_CONTRACT_ADDRESS;
 

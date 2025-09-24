@@ -7,6 +7,11 @@ const fs = require('fs');
 const path = require('path'); 
 
 
+
+
+
+
+
 const registryAddress = process.env.SLOT_REGISTRY_CONTRACT_ADDRESS;
 const WUSDCContractAddress = process.env.WUSDC_CONTRACT_ADDRESS;
 
@@ -18,14 +23,14 @@ const MERITIC_TEST_MKT_SERVICE_PRIVATE_KEY = process.env.MERITIC_TEST_MKT_SERVIC
 
 
 
-
-				
-
-task("DeployOffering", "Deploy Offering contract")
+task("DeployCountsCredit", "Deploy Counts contract")
   .addPositionalParam("revenueWallet")
   .addPositionalParam("registryAddress")
   .addPositionalParam("poolAddress")
-  .addPositionalParam("underlyingValueAddress")
+  .addPositionalParam("wrappedUsdcAddress")
+  .addPositionalParam("usdcAddress")
+  .addPositionalParam("mktAdminAddress")
+  .addPositionalParam("slotId")
   .addPositionalParam("name")
   .addPositionalParam("symbol")
   .addPositionalParam("baseuri")
@@ -38,12 +43,17 @@ task("DeployOffering", "Deploy Offering contract")
 
 
 
-    const OffringContract = await ethers.getContractFactory("Offering");
-	const ofContract = await OffringContract.deploy(
+    const CountsCreditContract = await ethers.getContractFactory("CountsCredit");
+	
+
+	const credit = await CountsCreditContract.deploy(
 											args.revenueWallet,
 											args.registryAddress,
 											args.poolAddress,
-											args.underlyingValueAddress,
+											args.wrappedUsdcAddress,
+											args.usdcAddress,
+											args.mktAdminAddress,
+											args.slotId,
 											args.name,
 											args.symbol,
 											args.baseuri,
@@ -51,14 +61,14 @@ task("DeployOffering", "Deploy Offering contract")
 											args.contractImage,
 											args.valueToken,
 											args.decimals);
-	const hashOfTx = ofContract.deployTransaction.hash	
-   	await ofContract.deployed();
+	const hashOfTx = credit.deployTransaction.hash	
+   	await credit.deployed();
    	
 
   	
-    let tx_receipt = await ofContract.provider.getTransactionReceipt(hashOfTx);
+    let tx_receipt = await credit.provider.getTransactionReceipt(hashOfTx);
   
 
-    console.log(JSON.stringify({contract_address: ofContract.address, tx_receipt: tx_receipt, tx_hash: hashOfTx}));
+    console.log(JSON.stringify({contract_address: credit.address, tx_receipt: tx_receipt, tx_hash: hashOfTx}));
 
   });

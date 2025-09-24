@@ -9,21 +9,23 @@ import "../extensions/Underlying.sol";
 
 
 
-
 contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
     
-
-    ERC20 private usdc;
-    
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+	bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+	
 	mapping(uint256 => mapping(address => uint256)) private _slotApprovedValues;
 	
     /// @notice emitted on mint, minter is address(this)
     event MintWUSDC(address indexed minter, address indexed to, uint256 amount);
     bytes32 public constant TRANSFER_ADMIN_ROLE = keccak256("TRANSFER_ADMIN_ROLE");
     
-    constructor(address usdcContract_, address mktAdminAcct_){
-        usdc = ERC20(usdcContract_); 
-        _setupRole(TRANSFER_ADMIN_ROLE, mktAdminAcct_);
+    constructor(address mktAdminAcct_){
+		_grantRole(DEFAULT_ADMIN_ROLE, mktAdminAcct_);
+
+        _grantRole(MINTER_ROLE, mktAdminAcct_);
+        _grantRole(BURNER_ROLE, mktAdminAcct_);
+        _grantRole(TRANSFER_ADMIN_ROLE, mktAdminAcct_);
     }
     
     
@@ -31,44 +33,26 @@ contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
         return 6;
     }
     
-    /// @notice emitted on redeem, redeemer is msg.sender
-    event Redeem(address indexed redeemer, uint256 amount);
-
-
-
-
 
     
-    
-    
-    function redeem(address to_, uint256 slotId_, uint256 amount_) external {
-        _redeem(to_, slotId_, amount_);
-    }
-    
-    
-    
-    
-    function _redeem(address to_, uint256 slotId_, uint256 amount_) private {
-        if(amount_ <= _slotApprovedValues[slotId_][msg.sender]){
-            _burn(msg.sender, amount_); 
-	        usdc.approve(to_, amount_);
-	        usdc.transfer(to_, amount_);
-	        
-	        _slotApprovedValues[slotId_][msg.sender] -= amount_;
-        }
-        emit Redeem(msg.sender, amount_);
-    }
+    function burn(address from,  uint256 slotId_, uint256 amount) external {
+    	require(hasRole(BURNER_ROLE, msg.sender), "WUSDC: Caller is not a burner");
+    	
+    	_slotApprovedValues[slotId_][from] -= amount;
+    	_burn(from, amount);
+
+	}	
+	
     
     
 	function mint(address to_, uint256 slotId_, uint256 amount_) external  {
-        _mint(to_, amount_);
+        require(hasRole(MINTER_ROLE, msg.sender), "WUSDC: Caller is not a minter");
+    	_mint(to_, amount_);
         _slotApprovedValues[slotId_][msg.sender] += amount_;
         emit MintWUSDC(msg.sender, to_, amount_);
     }
 
     function _mint(address to, uint256 amount) internal override {
-        usdc.approve(to, amount);
-   		usdc.transfer(to, amount); 
    		super._mint(to, amount); 
     }
     
@@ -77,15 +61,11 @@ contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
     function transferFrom(address from, address to, uint256 amount) public virtual override returns (bool) {
         require(hasRole(TRANSFER_ADMIN_ROLE, from), "WUSDC: Transfer refused. Unauthorized account");
         
-        usdc.approve(to, amount);
-        usdc.transfer(to, amount); 
         return super.transferFrom(from,  to,  amount);
     }
     
     function transfer(address to, uint256 amount) public virtual override (ERC20, Underlying) returns (bool) {
         bool result = super.transfer(to, amount);
-        usdc.approve(to, amount);
-        usdc.transfer(to, amount); 
         return result;
         
     }
