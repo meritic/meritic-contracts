@@ -7,7 +7,7 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "to_",
+          "name": "from",
           "type": "address"
         },
         {
@@ -17,11 +17,11 @@
         },
         {
           "internalType": "uint256",
-          "name": "amount_",
+          "name": "amount",
           "type": "uint256"
         }
       ],
-      "name": "mint",
+      "name": "burn",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -44,7 +44,7 @@
           "type": "uint256"
         }
       ],
-      "name": "redeem",
+      "name": "mint",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

@@ -80,7 +80,7 @@ contract Service is ERC3525, AccessControl {
         		string memory contractType_,
         		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
       
-	
+		_grantRole(DEFAULT_ADMIN_ROLE, mktAdmin_);
         _meriticMktAdmin = mktAdmin_;
         _defaultSlot = defaultSlot_;
         _adminAddress = adminAddress_;

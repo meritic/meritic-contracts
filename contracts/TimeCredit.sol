@@ -275,7 +275,8 @@ contract TimeCredit is Service {
 	       }
 	   }
 	   
-	   _valueContract.redeem(_revenueAcct, slotId_, uValue);
+	   //_valueContract.redeem(_revenueAcct, slotId_, uValue);
+	   _valueContract.burn(_revenueAcct, slotId_, uValue);
 	   super._burnValue(tokenId_, valueSeconds_);
 	}
 	
