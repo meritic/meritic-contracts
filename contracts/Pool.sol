@@ -11,7 +11,7 @@ import "@solvprotocol/erc-3525/ERC3525.sol";
 //import "./underlying/WUSDC.sol";
 import "./ServiceMetadataDescriptor.sol";	
 
-import "./Registry.sol";
+//import "./Registry.sol";
 //import "./message/Messenger.sol";
 
 
