@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./Offering.sol";
-import "./Service.sol";
+//import "./Service.sol";
 import "./Pool.sol";
 
 
