@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@solvprotocol/erc-3525/ERC3525.sol";
 //import "./underlying/WUSDC.sol";
 import "./ServiceMetadataDescriptor.sol";	
-import "./Service.sol";
+//import "./Service.sol";
 import "./Registry.sol";
 //import "./message/Messenger.sol";
 
