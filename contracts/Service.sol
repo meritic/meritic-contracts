@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-// 1. IMPORT ADDED: Required for tokenOfOwnerByIndex
+
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"; 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
@@ -16,7 +16,7 @@ import "./Pool.sol";
 import "./underlying/WUSDC.sol";
 import "./extensions/Underlying.sol";
 
-// 2. INHERITANCE UPDATED: Added ERC721Enumerable
+
 contract Service is ERC3525, ERC721Enumerable, AccessControl {
     
     using Strings for address;
@@ -94,12 +94,10 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
         emit MetadataDescriptor(address(metadataDescriptor));
     }
     
-    // 3. UPDATED: SupportsInterface must override both ERC3525, ERC721Enumerable and AccessControl
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC3525, ERC721Enumerable, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
-    // 4. ADDED: Required override for ERC721Enumerable to track token ownership indices
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -321,7 +319,7 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
         require(_exists(tokenId_) || _isNetworkToken(tokenId_), "ERC3525: invalid token ID");
     }
     
-    // NOTE: This overrides ERC3525 (value balance), NOT ERC721 (token balance)
+
     function balanceOf(uint256 tokenId_) public view virtual override returns (uint256) {
         _requireMinted(tokenId_);
         
@@ -332,8 +330,8 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
             return _slotPool.balanceOf(netTokenId);
         }
     }
-    
-    // NOTE: This overrides ERC721 ownerOf
+
+
     function ownerOf(uint256 tokenId_) public view virtual override(ERC3525, IERC721, ERC721) returns (address owner_) {
         _requireMinted(tokenId_);
         
