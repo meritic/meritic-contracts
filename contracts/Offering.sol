@@ -11,7 +11,7 @@ import "@solvprotocol/erc-3525/ERC3525.sol";
 import "@solvprotocol/erc-3525/periphery/ERC3525MetadataDescriptor.sol";
 
 import "./ServiceMetadataDescriptor.sol";
-import "./Registry.sol";
+//import "./Registry.sol";
 import "./Pool.sol";
 
 
