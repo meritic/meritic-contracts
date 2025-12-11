@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"; 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@solvprotocol/erc-3525/ERC3525.sol";
+
 import "./ServiceMetadataDescriptor.sol";
 import "./Registry.sol";
 import "./Pool.sol";
