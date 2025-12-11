@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 //import "./ServiceMetadataDescriptor.sol";
 import "./Registry.sol";
-import "./Pool.sol";
+//import "./Pool.sol";
 
 import "./underlying/WUSDC.sol";
 import "./extensions/Underlying.sol";
