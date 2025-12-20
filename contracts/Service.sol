@@ -5,19 +5,22 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"; 
+import "@solvprotocol/erc-3525/ERC3525.sol";
+
+//import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"; 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
+
 //import "./ServiceMetadataDescriptor.sol";
 import "./Registry.sol";
-//import "./Pool.sol";
+import "./Pool.sol";
 
 import "./underlying/WUSDC.sol";
 import "./extensions/Underlying.sol";
 
 
-contract Service is ERC3525, ERC721Enumerable, AccessControl {
+contract Service is ERC3525, AccessControl {
     
     using Strings for address;
     using Strings for uint256;
@@ -49,6 +52,9 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
  	mapping(bytes32 => uint256[]) internal  _offerIds;
     bytes32 public constant MKT_ARBITRATOR_ROLE = keccak256("MKT_ARBITRATOR_ROLE");
     bytes32 public constant SERVICE_ADMIN_ROLE = keccak256("SERVICE_ADMIN_ROLE");
+    
+    
+    mapping(address => mapping(uint256 => uint256)) private _latestUserTokenBySlot;
     
     event MintServiceToken(uint256  tokenId, uint256 slot, uint256 value);
     event MintServiceTokenToAddress(uint256  newTokenId, uint256 slot, uint256 value);
@@ -94,18 +100,36 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
         emit MetadataDescriptor(address(metadataDescriptor));
     }
     
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC3525, ERC721Enumerable, AccessControl) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC3525, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
-
-    function _beforeTokenTransfer(
+    
+    
+    function _afterTokenTransfer(
         address from,
         address to,
         uint256 firstTokenId,
         uint256 batchSize
-    ) internal virtual override(ERC3525, ERC721Enumerable) {
-        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+    ) internal virtual  {
+        // Call parent hook if it exists in your ERC3525 version, otherwise remove super call
+        // super._afterTokenTransfer(from, to, firstTokenId, batchSize);
+        
+        // When a user receives a token, remember it for their slot
+        if (to != address(0)) {
+            for (uint256 i = 0; i < batchSize; i++) {
+                uint256 tokenId = firstTokenId + i;
+                // Only track standard tokens
+                if(_exists(tokenId)) {
+                    uint256 slot = slotOf(tokenId);
+                    _latestUserTokenBySlot[to][slot] = tokenId;
+                }
+            }
+        }
     }
+    
+    
+
+    
     
     function defaultSlot() public view returns (uint256) {
         return _defaultSlot;
@@ -146,7 +170,9 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
 	    return ctype;
 	}
 
-    function mint(
+    
+  	
+  	function mint(
         address owner_, 
         uint256 slot_, 
         uint256 value_,
@@ -156,30 +182,24 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
         string memory property_
 	) public virtual returns (uint256) {
        
-        uint256 existingTokenId = 0;
+        uint256 existingTokenId = _latestUserTokenBySlot[owner_][slot_];
         bool found = false;
 
-        uint256 userTokenCount = ERC721.balanceOf(owner_);
-
-        for (uint256 i = 0; i < userTokenCount; i++) {
-            uint256 tokenId = tokenOfOwnerByIndex(owner_, i);
-            
-            if (ERC3525.slotOf(tokenId) == slot_ && networkTokenId[tokenId] == 0) {
-                existingTokenId = tokenId;
+        // Verify the cached token is valid and still owned by the user
+        // (They might have sold it since we cached it)
+        if (existingTokenId != 0 && _exists(existingTokenId)) {
+            if (ownerOf(existingTokenId) == owner_ && slotOf(existingTokenId) == slot_ && networkTokenId[existingTokenId] == 0) {
                 found = true;
-                break;
             }
         }
 
         if (found) {
-
             ERC3525._mintValue(existingTokenId, value_);
-            
             emit MintServiceToken(existingTokenId, slot_, value_);
-            
             return existingTokenId;
         } 
 
+        // Mint New
         uint256 newTokenId = ERC3525._mint(owner_, slot_, value_);
         
     	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(newTokenId, uuid_);
@@ -191,6 +211,10 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
 
 	    return newTokenId;
   	}
+  	
+  	
+  	
+  	
   	
   	function networkMintWithDiscount(address owner_, uint256 slot_, uint256 value_, uint256 discountBasisPts_,
         			string memory uuid_, string memory tokenDescription_, string memory tokenImage_, string memory property_) public virtual returns (uint256) {
@@ -290,7 +314,7 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
         address from_,
         address to_,
         uint256 tokenId_
-    ) public payable virtual override(ERC3525, IERC721) {
+    ) public payable virtual override(ERC3525) {
         super.transferFrom( from_, to_, tokenId_);
     }
     
@@ -332,7 +356,7 @@ contract Service is ERC3525, ERC721Enumerable, AccessControl {
     }
 
 
-    function ownerOf(uint256 tokenId_) public view virtual override(ERC3525, IERC721, ERC721) returns (address owner_) {
+    function ownerOf(uint256 tokenId_) public view virtual override(ERC3525) returns (address owner_) {
         _requireMinted(tokenId_);
         
         if(isContractToken(tokenId_)){

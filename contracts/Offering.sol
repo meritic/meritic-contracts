@@ -11,9 +11,16 @@ import "@solvprotocol/erc-3525/ERC3525.sol";
 import "@solvprotocol/erc-3525/periphery/ERC3525MetadataDescriptor.sol";
 
 import "./ServiceMetadataDescriptor.sol";
-//import "./Registry.sol";
+import "./Registry.sol";
+//import "./Service.sol";
 import "./Pool.sol";
 
+
+
+interface IServiceCredit {
+    function valueContractAddress() external view returns (address);
+    function valueDecimals() external view returns (uint8);
+}
 
 
 contract Offering is ERC3525, AccessControl {
@@ -362,10 +369,11 @@ contract Offering is ERC3525, AccessControl {
   	
   	function approveCredit(address creditContract_) public {
   	    //require(_registry.hasAccess('MKT_ADMIN', msg.sender), 'Sender not authorized to approve credit');
-  	    Service svc = Service(creditContract_);
+  	    //Service svc = Service(creditContract_);
+  	    IServiceCredit svc = IServiceCredit(creditContract_);
   	    require(svc.valueContractAddress() == _valueContractAddress, 'Value contract mismatch');
   	    require(svc.valueDecimals() == ERC3525.valueDecimals(), 'Decimals mismatch');
-		_approvedCredit[creditContract_] = true;
+		_approvedCredit[creditContract_] = true; 
   	}
   	
   	

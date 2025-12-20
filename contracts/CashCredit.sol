@@ -4,11 +4,44 @@ pragma solidity ^0.8.9;
 
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./Offering.sol";
-//import "./Service.sol";
-import "./Pool.sol";
+//import "./Offering.sol";
+import "./Service.sol";
+//import "./Pool.sol";
 
 
+
+
+
+interface IOffering {
+    function isApproveCredit(address creditContract_) external view returns (bool);
+    function approveCredit(address creditContract_) external;
+    
+    function mintFromCredits(
+        address creditContract_, 
+        uint256 creditTokenId_,
+        uint256 discountMilliBasisPts_,
+        address owner_, 
+        uint256 slotId_,
+        uint256 value_,
+        string memory offeringAssetId_
+    ) external returns (uint256);
+
+    function accessFromCredits(
+        address creditContract_, 
+        uint256 creditTokenId_, 
+        uint256 creditSlotId_, 
+        uint256 discountMilliBasisPts_, 
+        string memory offeringAssetId_, 
+        uint256 value_, 
+        uint256 endTime_
+    ) external returns (bool);
+}
+
+
+interface IPool {
+    function poolToken(uint256 slotId_, uint256 tokenId_) external;
+    function tokenDiscount(uint256 tokenId_) external view returns (uint256);
+}
 
 
 
@@ -18,7 +51,9 @@ contract CashCredit is Service {
     
 
 	//Underlying private _valueContract;
-	Pool internal _poolContract;
+	//Pool internal _poolContract;
+	IPool internal _poolContract;
+	
 	
 	uint256 _decimals;
 	// address _revenueAcct;
@@ -60,8 +95,11 @@ contract CashCredit is Service {
         }
     	
         // _revenueAcct = revenueAcct_;
+        // _poolContract = Pool(poolContract_);
         _decimals = decimals_;
-        _poolContract = Pool(poolContract_);
+        _poolContract = IPool(poolContract_);
+        
+        
         
     }
     
@@ -192,7 +230,8 @@ contract CashCredit is Service {
 	    					uint256 value_,
 	    					string memory assetId_) external returns (uint256) {
 	   
-	   Offering offering = Offering(offeringContract_);
+	   //Offering offering = Offering(offeringContract_);
+	   IOffering offering = IOffering(offeringContract_);
 	   
 	   require(ERC3525.ownerOf(creditTokenId_) == msg.sender || _registry.hasAccess('MKT_ADMIN', msg.sender), "Sender is not authorized to redeem.");
 	   require(ERC3525.balanceOf(creditTokenId_) >= value_, 'Value exceeds credit balance');
@@ -236,7 +275,9 @@ contract CashCredit is Service {
 	    					uint256 accesssEndTime_,
 	    					string memory assetId_) external returns (bool) {
 	    					    
-	   Offering offering = Offering(offeringContract_);
+	   //Offering offering = Offering(offeringContract_);
+	   IOffering offering = IOffering(offeringContract_);
+	   
 	   
 	   require(ERC3525.ownerOf(creditTokenId_) == msg.sender || _registry.hasAccess('MKT_ADMIN', msg.sender), "Sender is not authorized to redeem.");
 	   require(ERC3525.balanceOf(creditTokenId_) >= value_, 'Value exceeds credit balance');

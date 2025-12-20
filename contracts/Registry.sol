@@ -1,12 +1,16 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.9;
 
+
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./Service.sol";
+// REMOVED: import "./Service.sol";
 import "./util/Util.sol";
 
+interface IServiceAdmin {
+    function contractAdmin() external view returns (address);
+}
 
 
 contract Registry is AccessControl {
@@ -190,7 +194,8 @@ contract Registry is AccessControl {
         require(_isSlotAdmin[slotId_][msg.sender], "Sender not authorized to approve on this slot");
         
         //uint256 defaultSlot = _contractSlot[contract_];
-        address contractAdmin_ = Service(contract_).contractAdmin();
+        //address contractAdmin_ = Service(contract_).contractAdmin();
+        address contractAdmin_ = IServiceAdmin(contract_).contractAdmin();
         _isSlotAdmin[slotId_][contractAdmin_] = true;
         
         // emit event notfying approvial

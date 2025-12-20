@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@solvprotocol/erc-3525/ERC3525.sol";
 import "./ServiceMetadataDescriptor.sol";	
-//import "./Service.sol";
+import "./Service.sol";
 
 
 contract SlotRegistry is ERC3525, AccessControl {
