@@ -48,6 +48,7 @@ contract WUSDC is ERC20("Wrapped USDC", "WUSDC"), Underlying, AccessControl {
 	function mint(address to_, uint256 slotId_, uint256 amount_) external  {
         require(hasRole(MINTER_ROLE, msg.sender), "WUSDC: Caller is not a minter");
     	_mint(to_, amount_);
+    	
         _slotApprovedValues[slotId_][msg.sender] += amount_;
         emit MintWUSDC(msg.sender, to_, amount_);
     }

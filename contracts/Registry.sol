@@ -52,6 +52,10 @@ contract Registry is AccessControl {
 	
 	
 	mapping(address => CreditType) private _contractType;
+	
+	
+	mapping(address => bool) private _registeredContracts;
+	
     
     mapping(address => string) private _userInfo;
     address[] private _users;  
@@ -61,7 +65,6 @@ contract Registry is AccessControl {
 	uint256[] private _slotIds;  
     mapping(address => mapping(uint256 => uint256)) private _contractTokenSlot;
     
-    //mapping(uint256 => mapping(address => bool)) private _inSlotNetwork;
     mapping(uint256 => mapping(address => bool)) public _isSlotAdmin;
   	mapping(uint256 => mapping(address => address)) private _invited;
   	
@@ -81,6 +84,9 @@ contract Registry is AccessControl {
  
     }
     
+    function isRegisteredContract(address contract_) external view returns (bool) {
+        return _registeredContracts[contract_];
+    }
     
     
     function slot(uint256 slot_) public view returns (Slot memory) {
@@ -152,7 +158,7 @@ contract Registry is AccessControl {
 		
 		
         _contractType[msg.sender] = type_;
-        //_inSlotNetwork[slot_][msg.sender] = true;
+        _registeredContracts[msg.sender] = true;
     }
     
     
@@ -254,6 +260,7 @@ contract Registry is AccessControl {
 		
 		
         _isSlotAdmin[slotId_][ctrctSvcAdminAdress_] = true;
+        _registeredContracts[ctrctSvcAdminAdress_] = true;
         
         
         emit NewSlot(_slotRegistry[slotId_].slotId, _slotRegistry[slotId_].name);
@@ -306,10 +313,7 @@ contract Registry is AccessControl {
     function assetOffering(bytes32 assetIdBytes) public view returns (uint256) {
         return _assetOffering[assetIdBytes];
     }
-    /*function inSlotNetwork(uint256 slotId_, address contractAddr_) public view returns (bool) {
-        return _inSlotNetwork[slotId_][contractAddr_];
-    }*/
- 
+
  
     function isApprovedCurrency(string memory symbol_) public view returns (bool) {
 	    for (uint i = 0; i < _underlyingCurrency.length; i++) {

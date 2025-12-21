@@ -32,7 +32,7 @@ contract OrderCredit is Service {
         		string memory baseUri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		uint8 decimals_) Service(adminAddress_, mktAdmin_, slotRegistry_, poolContract_, underlyingContract_, defaultSlot_, name_, symbol_ , baseUri_, contractDescription_ , contractImage_, 'priority', decimals_) {
+        		uint8 decimals_) Service(adminAddress_, mktAdmin_, slotRegistry_, poolContract_, defaultSlot_, name_, symbol_ , baseUri_, contractDescription_ , contractImage_, 'priority', decimals_) {
 
     }
     

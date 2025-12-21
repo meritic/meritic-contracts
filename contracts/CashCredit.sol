@@ -86,7 +86,7 @@ contract CashCredit is Service {
         		string memory contractDescription_,
         		string memory contractImage_,
         		string memory valueToken_,
-        		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, underlyingContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'cash', decimals_) {
+        		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'cash', decimals_) {
 
         if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
             _valueContract = ERC20(underlyingContract_); 
@@ -145,30 +145,13 @@ contract CashCredit is Service {
        _valueContract.transferFrom(_meriticMktAdmin, address(this), uValue);
        _underlying[tokenId] = _underlying[tokenId] + uValue;
        
-       //_valueContract.mint(address(this), slot_, uValue);*/
-       
+ 
        
     	
 	   return tokenId;
   	}
   
-  	
-  	
-  	/*function mintTransfer(address owner_, 
-  	    			address receiver_, 
-        			uint256 slot_, 
-        			uint256 value_,
-        			string memory uuid_,
-        			string memory tokenDescription_,
-        			string memory tokenImage_,
-        			string memory property_
-    ) public virtual returns (uint256) {
-        
-        uint256 tokenId = mint(receiver_, slot_, value_, uuid_, tokenDescription_, tokenImage_, property_);
-        
-        //transferFrom(owner_, receiver_, tokenId);
-    }*/
-    
+
     
     
     

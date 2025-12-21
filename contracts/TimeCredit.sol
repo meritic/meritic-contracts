@@ -53,7 +53,7 @@ contract TimeCredit is Service {
         		string memory dispTimeUnit_, 
         		string memory valueToken_, 
         		uint8 decimals_) 
-        		Service(serviceAdmin_, mktAdmin_, slotRegistry_, poolContract_, underlyingContract_, defaultSlot_, name_, symbol_, baseUri_, string(abi.encodePacked(contractDescription_, "\n Time units: " , dispTimeUnit_)), contractImage_, 'time',  decimals_) {
+        		Service(serviceAdmin_, mktAdmin_, slotRegistry_, poolContract_, defaultSlot_, name_, symbol_, baseUri_, string(abi.encodePacked(contractDescription_, "\n Time units: " , dispTimeUnit_)), contractImage_, 'time',  decimals_) {
 				
         		_defaultSlot = defaultSlot_;
         		

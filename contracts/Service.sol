@@ -42,7 +42,7 @@ contract Service is ERC3525, AccessControl {
         uint256 expiration;
     }
     
-    address _valueContractAddress;
+    // address _valueContractAddress;
     Registry.CreditType internal _contractType;
     
     mapping(uint256 => uint256) internal networkTokenId;
@@ -67,7 +67,7 @@ contract Service is ERC3525, AccessControl {
         		address mktAdmin_,
         		address slotRegistry_,
         		address pool_,
-        		address valueContractAddresss_,
+        		// address valueContractAddresss_,
         		uint256 defaultSlot_,
         		string memory name_, 
         		string memory symbol_,
@@ -83,7 +83,7 @@ contract Service is ERC3525, AccessControl {
         _adminAddress = adminAddress_;
   		_registry = Registry(slotRegistry_);
   		_slotPool = Pool(pool_);
-  		_valueContractAddress = valueContractAddresss_;
+  		//_valueContractAddress = valueContractAddresss_;
   		
   		_contractType = ( keccak256(abi.encodePacked(contractType_)) == keccak256(abi.encodePacked('time'))? Registry.CreditType.time_ : 
   							keccak256(abi.encodePacked(contractType_)) == keccak256(abi.encodePacked('cash')) ?  Registry.CreditType.cash_ : 
@@ -143,9 +143,9 @@ contract Service is ERC3525, AccessControl {
         return ServiceMetadataDescriptor(address(metadataDescriptor)).constructContractURI();
     }
     
-    function valueContractAddress() public view returns (address){
+    /*function valueContractAddress() public view returns (address){
         return _valueContractAddress;
-    }
+    }*/
     
     function tokenURI(uint256 tokenId_) public view virtual override returns (string memory) {
         ERC3525._requireMinted(tokenId_);
