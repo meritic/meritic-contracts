@@ -27,7 +27,6 @@ task("DeployCountsCredit", "Deploy Counts contract")
   .addPositionalParam("revenueWallet")
   .addPositionalParam("registryAddress")
   .addPositionalParam("poolAddress")
-  .addPositionalParam("wrappedUsdcAddress")
   .addPositionalParam("usdcAddress")
   .addPositionalParam("mktAdminAddress")
   .addPositionalParam("slotId")
@@ -50,7 +49,6 @@ task("DeployCountsCredit", "Deploy Counts contract")
 											args.revenueWallet,
 											args.registryAddress,
 											args.poolAddress,
-											args.wrappedUsdcAddress,
 											args.usdcAddress,
 											args.mktAdminAddress,
 											args.slotId,
