@@ -12,7 +12,7 @@ import "@solvprotocol/erc-3525/periphery/ERC3525MetadataDescriptor.sol";
 
 import "./ServiceMetadataDescriptor.sol";
 import "./Registry.sol";
-//import "./Service.sol";
+import "./Service.sol";
 import "./Pool.sol";
 
 

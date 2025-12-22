@@ -1,18 +1,16 @@
 //SPDX-License-Identifier: 	BUSL-1.1
 pragma solidity ^0.8.9;
 
-//import "./Service.sol";
+import "./Service.sol";
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "@solvprotocol/erc-3525/ERC3525.sol";
-//import "./underlying/WUSDC.sol";
 import "./ServiceMetadataDescriptor.sol";	
 
 import "./Registry.sol";
-//import "./message/Messenger.sol";
 
 
 
