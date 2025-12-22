@@ -99,6 +99,10 @@ contract Offering is ERC3525, AccessControl {
     ERC20 internal _valueContract;
     uint256 private _offerIdGenerator;
 	uint256 private _assetInteractionIdGenerator;
+	
+	
+	bytes32 public constant MKT_ARBITRATOR_ROLE = keccak256("MKT_ARBITRATOR_ROLE");
+    bytes32 public constant SERVICE_ADMIN_ROLE = keccak256("SERVICE_ADMIN_ROLE");
 
     constructor(address revenueAcct_,
         		address registry_,
@@ -123,6 +127,9 @@ contract Offering is ERC3525, AccessControl {
         _createOfferingId();
         _createAssetInteractionId();
         
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(SERVICE_ADMIN_ROLE, msg.sender);
+        
 		metadataDescriptor = new ServiceMetadataDescriptor(baseuri_, contractDescription_, contractImage_, registry_);
         emit MetadataDescriptor(address(metadataDescriptor));    
  	}
@@ -137,31 +144,7 @@ contract Offering is ERC3525, AccessControl {
     
     
     
-    /*function offerings(string memory assetId_, string memory side_) public view returns (Offer[] memory) {
-        bytes32 assetIdBytes = keccak256(bytes(assetId_));
-        uint256[] memory offerIds = _offerIds[assetIdBytes];
-     
-        uint256 offerCount = 0;
-        for (uint256 i=0; i < offerIds.length; i++) {
-            Offer memory o = _offer[assetIdBytes][offerIds[i]];
-            if(keccak256(bytes(o.side))  == keccak256(bytes(side_)) && o.expiration > block.timestamp){
-                offerCount++;
-            }
-        }
-        
-        
-        Offer[] memory voffers = new Offer[](offerCount);
-        uint256 j=0;
-        
-        for (uint256 i=0; i < offerIds.length; i++) {
-            Offer memory o = _offer[assetIdBytes][offerIds[i]];
-            if(keccak256(bytes(o.side))  == keccak256(bytes(side_)) && o.expiration > block.timestamp){
-                voffers[j++] = o;
-            }
-        }
-        
-        return voffers;
-    }*/
+
     
     
     
