@@ -1,5 +1,6 @@
 //import { task } from "hardhat/config";
 const { task }  = require('hardhat/config');
+
 //const { ethers } = require('ethers');
 //const ethers = require('hardhat');
 //const { config } =  require('dotenv');
@@ -35,38 +36,46 @@ task("DeployCountsCredit", "Deploy Counts contract")
   .addPositionalParam("baseuri")
   .addPositionalParam("contractDescription")
   .addPositionalParam("contractImage")
-  .addPositionalParam("valueToken")
   .addPositionalParam("decimals")
-  .setAction(async (args) => {
-
-
-
+  .setAction(async (args, hre) => {
+    // 1. Get ethers from the Hardhat Runtime Environment (hre)
+    const { ethers } = hre;
 
     const CountsCreditContract = await ethers.getContractFactory("CountsCredit");
-	
 
-	const credit = await CountsCreditContract.deploy(
-											args.revenueWallet,
-											args.registryAddress,
-											args.poolAddress,
-											args.usdcAddress,
-											args.mktAdminAddress,
-											args.slotId,
-											args.name,
-											args.symbol,
-											args.baseuri,
-											args.contractDescription,
-											args.contractImage,
-											args.valueToken,
-											args.decimals);
-	const hashOfTx = credit.deployTransaction.hash	
-   	await credit.deployed();
-   	
+    // 2. Deploy
+    const credit = await CountsCreditContract.deploy(
+      args.revenueWallet,
+      args.registryAddress,
+      args.poolAddress,
+      args.usdcAddress,
+      args.mktAdminAddress,
+      args.slotId,
+      args.name,
+      args.symbol,
+      args.baseuri,
+      args.contractDescription,
+      args.contractImage,
+      args.decimals
+    );
 
-  	
-    let tx_receipt = await credit.provider.getTransactionReceipt(hashOfTx);
-  
+    // 3. Wait for deployment (Ethers v6 syntax)
+    // If this fails with "credit.waitForDeployment is not a function", 
+    // switch back to: await credit.deployed();
+    await credit.waitForDeployment(); 
 
-    console.log(JSON.stringify({contract_address: credit.address, tx_receipt: tx_receipt, tx_hash: hashOfTx}));
+    // 4. Get Address and Transaction Hash (Ethers v6 syntax)
+    const contractAddress = await credit.getAddress();
+    const hashOfTx = credit.deploymentTransaction().hash;
+    
+    // 5. Get Receipt
+    // In Hardhat tasks, credit.deploymentTransaction().wait() is usually sufficient
+    const tx_receipt = await credit.deploymentTransaction().wait();
 
+    // 6. Output JSON
+    console.log(JSON.stringify({
+        contract_address: contractAddress, 
+        tx_receipt: tx_receipt, 
+        tx_hash: hashOfTx
+    }));
   });

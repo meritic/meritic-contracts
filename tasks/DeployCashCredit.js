@@ -35,7 +35,6 @@ task("DeployCashCredit", "Deploy Cash contract")
   .addPositionalParam("baseuri")
   .addPositionalParam("contractDescription")
   .addPositionalParam("contractImage")
-  .addPositionalParam("valueToken")
   .addPositionalParam("decimals")
   .setAction(async (args) => {
 
@@ -55,7 +54,6 @@ task("DeployCashCredit", "Deploy Cash contract")
 											args.baseuri,
 											args.contractDescription,
 											args.contractImage,
-											args.valueToken,
 											args.decimals);
 	const hashOfTx = credit.deployTransaction.hash	
    	await credit.deployed();

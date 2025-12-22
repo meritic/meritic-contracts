@@ -113,7 +113,6 @@ contract Offering is ERC3525, AccessControl {
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		string memory valueToken_,
         		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
         		    
         

@@ -31,7 +31,6 @@ task("DeployOffering", "Deploy Offering contract")
   .addPositionalParam("baseuri")
   .addPositionalParam("contractDescription")
   .addPositionalParam("contractImage")
-  .addPositionalParam("valueToken")
   .addPositionalParam("decimals")
   .setAction(async (args) => {
 
@@ -49,7 +48,6 @@ task("DeployOffering", "Deploy Offering contract")
 											args.baseuri,
 											args.contractDescription,
 											args.contractImage,
-											args.valueToken,
 											args.decimals);
 	const hashOfTx = ofContract.deployTransaction.hash	
    	await ofContract.deployed();

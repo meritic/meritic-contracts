@@ -43,8 +43,7 @@ contract CountsCredit is Service {
         		string memory symbol_, 
         		string memory baseuri_,
         		string memory contractDescription_,
-        		string memory contractImage_,
-        		string memory valueToken_, 
+        		string memory contractImage_, 
         		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'counts', decimals_) {
 
 		_underlyingUSDC = IERC20(USDContract_); 

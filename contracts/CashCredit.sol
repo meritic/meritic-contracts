@@ -4,9 +4,10 @@ pragma solidity ^0.8.9;
 
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-//import "./Offering.sol";
 import "./Service.sol";
-//import "./Pool.sol";
+import "./interfaces/ILedgerUpdate.sol"; 
+
+
 
 
 
@@ -40,6 +41,7 @@ interface IOffering {
 
 interface IPool {
     function poolToken(uint256 slotId_, uint256 tokenId_) external;
+    function contractOf(uint256 networkTokenId_) external view returns (address);
     function tokenDiscount(uint256 tokenId_) external view returns (uint256);
 }
 
@@ -47,37 +49,31 @@ interface IPool {
 
 
 
-contract CashCredit is Service {
+contract CashCredit is Service, ILedgerUpdate {
     
 
-	//Underlying private _valueContract;
-	//Pool internal _poolContract;
 	IPool internal _poolContract;
 	
 	
 	uint256 _decimals;
-	// address _revenueAcct;
+
 	uint256 _totalBalance;
 	uint256 internal _hundredPctMilliBasisPts = 10000 * 1000;
 	mapping(uint256 => uint256) private _tokenDiscount;
 
-	mapping(uint256 => mapping(address => uint256)) private _slotApprovedValues;
-	
+	mapping(uint256 => uint256) internal _slotUsdcBalance;
 	
 	event MintNetworkServiceToken(uint256  tokenId, uint256 slot, uint256 value);
 	event MintCashToken(uint256  tokenId, uint256 slot, uint256 value);
 	event RedeemForAsset(uint256  tokenId, address indexed redeemer, uint256 amount);
 	event RedeemForAccess(address indexed redeemer, uint256 creditAmount, uint256 valueAmount );
 	
-	
-	ERC20 internal _valueContract;
-	
-
+	IERC20 internal _usdc;
 
     constructor(address revenueAcct_,
         		address slotRegistryContract_,
         		address poolContract_,
-        		address underlyingContract_,
+        		address usdcContract_,
         		address mktAdmin_,
         		uint256 defaultSlot_,
         		string memory name_, 
@@ -85,22 +81,12 @@ contract CashCredit is Service {
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		string memory valueToken_,
         		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'cash', decimals_) {
-
-        if( keccak256(bytes(valueToken_)) == keccak256(bytes("USDC")) ){
-            _valueContract = ERC20(underlyingContract_); 
-        }else{
-            revert("CashCredit: Only USDC underlying accepted at this time");
-        }
-    	
-        // _revenueAcct = revenueAcct_;
-        // _poolContract = Pool(poolContract_);
+        		
+       	_usdc = IERC20(usdcContract_); 
         _decimals = decimals_;
         _poolContract = IPool(poolContract_);
-        
-        
-        
+
     }
     
     
@@ -112,187 +98,229 @@ contract CashCredit is Service {
  	
     function mintWithDiscount(address owner_, 
         			uint256 slot_, 
-        			uint256 value_,
-        			uint256 etherizedDiscountBasisPts_,
+        			uint256 value_, // The Face Value of the credit (e.g., $100 voucher)
+        			uint256 discountBasisPts_, // The discount (e.g., 10% off)
         			string memory uuid_,
         			string memory tokenDescription_,
         			string memory tokenImage_,
         			string memory property_
     ) public virtual returns (uint256) {
- 
-       
-       uint256 tokenId;
-       
-       
-       tokenId = Service.mint(owner_, slot_, value_, uuid_, tokenDescription_, tokenImage_, property_);
-       
-       _registry.registerTokenSlot(tokenId, slot_); 
-       
-       if(slot_ != _defaultSlot){
-           _poolContract.poolToken(slot_, tokenId);
-       }
-       
-       emit MintCashToken(tokenId, slot_, value_);
-       
-       _totalBalance += value_;
-       
-       _tokenDiscount[tokenId] = etherizedDiscountBasisPts_;  
-       
-  
-       uint256 uValue = (_hundredPctMilliBasisPts - _tokenDiscount[tokenId] / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
-       _slotApprovedValues[slot_][owner_] += uValue;
-       
-       _valueContract.transferFrom(_meriticMktAdmin, address(this), uValue);
-       _underlying[tokenId] = _underlying[tokenId] + uValue;
-       
- 
-       
+    
+    	uint256 uValue = (_hundredPctMilliBasisPts - discountBasisPts_ / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
+    	_usdc.transferFrom(msg.sender, address(this), uValue);
     	
-	   return tokenId;
+    	uint256 tokenId;
+    	
+    	if(slot_ == _defaultSlot){
+    		// Local Mint (Utilizes Service.sol Smart Minting)
+    		tokenId = Service.mint(owner_, slot_, value_, uuid_, tokenDescription_, tokenImage_, property_);
+      
+       		uint256 currentBalance = ERC3525.balanceOf(tokenId);
+       		uint256 prevBalance = currentBalance - value_;
+       		
+       		if (prevBalance > 0) {
+       			// Token existed. We must blend the discount so backing value remains correct.
+       			// Formula: (OldFace * OldDiscount + NewFace * NewDiscount) / TotalFace
+       			uint256 oldDiscount = _tokenDiscount[tokenId];
+       			uint256 weightedDiscount = ((prevBalance * oldDiscount) + (value_ * discountBasisPts_)) / currentBalance;
+       			_tokenDiscount[tokenId] = weightedDiscount;
+   			} else {
+   				// New Token
+   				_tokenDiscount[tokenId] = discountBasisPts_;
+			}
+		} else {
+			// Network Mint
+			// Service.networkMintWithDiscount usually creates a fresh token ID
+			tokenId = Service.networkMintWithDiscount(owner_, slot_, value_, discountBasisPts_, uuid_, tokenDescription_, tokenImage_, property_);
+			// For network tokens, assume fresh ID, so set discount directly
+			_tokenDiscount[tokenId] = discountBasisPts_;
+			emit MintNetworkServiceToken(networkTokenId[tokenId], slot_, value_);
+		}
+		
+		_registry.registerTokenSlot(tokenId, slot_);
+		
+		if(slot_ != _defaultSlot){
+			_poolContract.poolToken(slot_, tokenId);
+		}
+		
+		emit MintCashToken(tokenId, slot_, value_);
+		_totalBalance += value_;
+		
+		_slotUsdcBalance[slot_] += uValue;
+		
+		return tokenId;
   	}
   
 
     
     
-    
-  	function mint(address owner_, 
-        			uint256 slot_, 
-        			uint256 value_,
-        			string memory uuid_,
-        			string memory tokenDescription_,
-        			string memory tokenImage_,
-        			string memory property_
+    function mint(
+        address owner_, 
+        uint256 slot_, 
+        uint256 value_,
+        string memory uuid_,
+        string memory tokenDescription_,
+        string memory tokenImage_,
+        string memory property_
     ) public virtual override returns (uint256) {
-        uint256 discountBasisPts_ = 0;
-
-        uint256 tokenId = mintWithDiscount(owner_, slot_, value_, discountBasisPts_, uuid_, tokenDescription_, tokenImage_, property_);
-        
-        
-  
-        emit MintCashToken(tokenId, slot_, value_);
-        return tokenId;
-       
+    	return mintWithDiscount(owner_, slot_, value_, 0, uuid_, tokenDescription_, tokenImage_, property_);
+    	
   	}
-  	
-  	
-  	
   	
   	
   	
   	function tokenDiscount(uint256 tokenId_) external view returns (uint256) {
-  	    if(isContractToken(tokenId_)){
-  	    	return _tokenDiscount[tokenId_];	
-  	    }else{
-  	        return _poolContract.tokenDiscount(tokenId_);
-  	    }
-  	}
-  	
-  	
-  	
-  	
-  	
-	/*function redeem(uint256 tokenId_, uint256 slotId_, uint256 value_) external {
-	    
-	   require(ERC3525.ownerOf(tokenId_) == msg.sender || hasRole(MKT_ARBITRATOR_ROLE, msg.sender), "Sender is not authorized to redeem.");
-	   uint256 uValue =  (10000 - _tokenDiscount[tokenId_] / (10 ** _decimals)) * value_ / 10000;
-
-	   if(uValue <= _slotApprovedValues[slotId_][msg.sender]){
-	       _valueContract.approve(_revenueAcct, uValue);
-	       _valueContract.transfer(_revenueAcct, uValue);
-	       _slotApprovedValues[slotId_][msg.sender] -= uValue;
+        if(isContractToken(tokenId_)){
+            return _tokenDiscount[tokenId_];    
+        } else {
+            return _poolContract.tokenDiscount(tokenId_);
         }
-        emit Redeem(msg.sender, uValue);
-       
-	   _totalBalance -= value_;
-	   super._burnValue(tokenId_, value_);
-	}*/
-	
-	function redeemForAsset(address offeringContract_, 
-	    					uint256 creditTokenId_, 
-	    					uint256 slotId_, 
-	    					uint256 value_,
-	    					string memory assetId_) external returns (uint256) {
-	   
-	   //Offering offering = Offering(offeringContract_);
-	   IOffering offering = IOffering(offeringContract_);
-	   
-	   require(ERC3525.ownerOf(creditTokenId_) == msg.sender || _registry.hasAccess('MKT_ADMIN', msg.sender), "Sender is not authorized to redeem.");
-	   require(ERC3525.balanceOf(creditTokenId_) >= value_, 'Value exceeds credit balance');
-	   
-	   if(!offering.isApproveCredit(address(this))){
-	       offering.approveCredit(address(this));
-	   }
-	   
-	   uint256 uValue =  (_hundredPctMilliBasisPts - _tokenDiscount[creditTokenId_] / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
-	   require(uValue <= _slotApprovedValues[slotId_][msg.sender], "Insufficient allowance");
-	   
-	   try _valueContract.approve(offeringContract_, uValue) returns (bool isApproved) {
-	       //_valueContract.approve(offeringContract_, uValue);
-	       uint256 assetTokenId = offering.mintFromCredits( address(this), 
-           												creditTokenId_, 
-           												_tokenDiscount[creditTokenId_], 
-           												msg.sender, 
-           												slotId_, 
-           												value_, 
-           												assetId_);
-           												
-           
-           _slotApprovedValues[slotId_][msg.sender] -= uValue;
-	       emit RedeemForAsset(assetTokenId, msg.sender, uValue);
-		   _totalBalance -= value_;
-		   super._burnValue(creditTokenId_, value_);
-		   return assetTokenId;
-	   } catch {
-            revert("Credits not approved for this offering");
-       }
-	   
-	   return 0;
-	}
-	
-	
-	
-	function redeemForAccess(address offeringContract_, 
-	    					uint256 creditTokenId_, 
-	    					uint256 slotId_, 
-	    					uint256 value_,
-	    					uint256 accesssEndTime_,
-	    					string memory assetId_) external returns (bool) {
-	    					    
-	   //Offering offering = Offering(offeringContract_);
-	   IOffering offering = IOffering(offeringContract_);
-	   
-	   
-	   require(ERC3525.ownerOf(creditTokenId_) == msg.sender || _registry.hasAccess('MKT_ADMIN', msg.sender), "Sender is not authorized to redeem.");
-	   require(ERC3525.balanceOf(creditTokenId_) >= value_, 'Value exceeds credit balance');
-	   
-	   if(!offering.isApproveCredit(address(this))){
-	       offering.approveCredit(address(this));
-	   }
-	   uint256 uValue =  (_hundredPctMilliBasisPts - _tokenDiscount[creditTokenId_] / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
-	   
-	   require(uValue <= _slotApprovedValues[slotId_][msg.sender], "Insufficient allowance");
-	   
-	   _valueContract.approve(offeringContract_, uValue);
-	   
-	   bool accessGranted = offering.accessFromCredits(
-			        					address(this), 
-			        					creditTokenId_, 
-			        					slotId_,
-			        					_tokenDiscount[creditTokenId_], 
-		        						assetId_,
-		        						value_, accesssEndTime_);
-        						
-       _slotApprovedValues[slotId_][msg.sender] -= uValue;
-       
-       emit RedeemForAccess(msg.sender, value_, uValue);
-       
-	   _totalBalance -= value_;
-	  
-	   super._burnValue(creditTokenId_, value_);
-	   
-	   return true;
-	}
+    }
     
+    
+    
+    function redeem(uint256 tokenId_, uint256 value_) external {
+        require(ERC3525.ownerOf(tokenId_) == msg.sender, "Sender not authorized to redeem.");
+        require(ERC3525.balanceOf(tokenId_) >= value_, "Insufficient credit balance");
+
+        // 1. Calculate Backing Value
+        uint256 discount;
+        if(isContractToken(tokenId_)){
+            discount = _tokenDiscount[tokenId_];
+        } else {
+            uint256 netTokenId = networkTokenId[tokenId_];
+            discount = (netTokenId != 0) ? _poolContract.tokenDiscount(netTokenId) : _poolContract.tokenDiscount(tokenId_);
+        }
+
+        uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
+
+        super._burnValue(tokenId_, value_);
+        _totalBalance -= value_;
+
+        // 3. Update Ledger & Transfer
+        uint256 slot = ERC3525.slotOf(tokenId_);
+        require(_slotUsdcBalance[slot] >= uValue, "Critical: Slot insolvent");
+        
+        _slotUsdcBalance[slot] -= uValue;
+        
+        require(_usdc.transfer(msg.sender, uValue), "USDC Transfer failed");
+    }
+    
+    
+    
+    
+    
+    function redeemForAsset(
+        address offeringContract_, 
+        uint256 creditTokenId_, 
+        uint256 slotId_, 
+        uint256 value_,
+        string memory assetId_
+    ) external returns (uint256) {
+       
+       IOffering offering = IOffering(offeringContract_);
+       
+       require(ERC3525.ownerOf(creditTokenId_) == msg.sender || _registry.hasAccess('MKT_ADMIN', msg.sender), "Sender is not authorized.");
+       require(ERC3525.balanceOf(creditTokenId_) >= value_, 'Value exceeds credit balance');
+       
+       if(!offering.isApproveCredit(address(this))){
+           offering.approveCredit(address(this));
+       }
+       
+       uint256 discount = _tokenDiscount[creditTokenId_];
+       uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
+       
+       require(_slotUsdcBalance[slotId_] >= uValue, "Insufficient slot liquidity");
+       
+       // Approve Offering contract to pull USDC
+       _usdc.approve(offeringContract_, uValue);
+       
+       // This returns the Token ID of the purchased Asset (e.g., Access Pass or Item)
+       uint256 assetTokenId = offering.mintFromCredits( 
+                                                address(this), 
+                                                creditTokenId_, 
+                                                discount, 
+                                                msg.sender, 
+                                                slotId_, 
+                                                value_, 
+                                                assetId_);
+                                                
+       _slotUsdcBalance[slotId_] -= uValue;
+       _totalBalance -= value_;
+       
+       super._burnValue(creditTokenId_, value_);
+       
+       emit RedeemForAsset(assetTokenId, msg.sender, uValue);
+       return assetTokenId;
+    }
+    
+    
+    
+	
+	
+	
+	
+	
+	
+	
+	function addSlotLiquidity(uint256 slotId, uint256 amount) external override {
+        // Only accept liquidity updates, usually from trusted contracts
+        _slotUsdcBalance[slotId] += amount;
+    }
+    
+
+	function transferFrom(
+        uint256 fromTokenId_,
+        uint256 toTokenId_,
+        uint256 value_
+    ) public payable virtual override {
+        
+        // Scenario 1: Same Contract Transfer
+        if(isContractToken(fromTokenId_) && isContractToken(toTokenId_)){
+            
+            uint256 toTokenValue = ERC3525.balanceOf(toTokenId_);
+            uint256 fromDiscount = _tokenDiscount[fromTokenId_];
+            uint256 toDiscount = _tokenDiscount[toTokenId_];
+
+            if(fromDiscount != toDiscount){
+                // Weighted Average Discount
+                _tokenDiscount[toTokenId_] = ((fromDiscount * value_) + (toDiscount * toTokenValue)) / (value_ + toTokenValue);
+            }
+            super.transferFrom(fromTokenId_, toTokenId_, value_);
+            
+        } 
+        // Scenario 2: Network Transfer (Cross-Contract)
+        else if(!isContractToken(fromTokenId_) && !isContractToken(toTokenId_)){
+            
+            uint256 netTokenId = networkTokenId[fromTokenId_];
+            require(netTokenId != 0, "CashCredit: invalid sender token ID");
+            
+            address toContractAddress = _poolContract.contractOf(toTokenId_);
+            
+            // Perform Credit Transfer
+            super.transferFrom(fromTokenId_, toTokenId_, value_);
+            
+            // If target is another contract, move funds and notify
+            if (toContractAddress != address(this)) {
+                
+                uint256 discount = (netTokenId != 0) ? _poolContract.tokenDiscount(netTokenId) : _poolContract.tokenDiscount(fromTokenId_);
+                uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
+                
+                uint256 slot = ERC3525.slotOf(fromTokenId_);
+
+                require(_slotUsdcBalance[slot] >= uValue, "Insufficient liquidity for transfer");
+                _slotUsdcBalance[slot] -= uValue;
+                _totalBalance -= value_;
+
+                require(_usdc.transfer(toContractAddress, uValue), "USDC transfer failed");
+
+                ILedgerUpdate(toContractAddress).addSlotLiquidity(slot, uValue);
+            }
+            
+        } else {
+            revert("CashCredit: transfer type mismatch");
+        }
+    }
     
     
     function transferFrom(
@@ -301,74 +329,7 @@ contract CashCredit is Service {
         uint256 value_
     ) public payable virtual override returns (uint256) {
         return super.transferFrom(fromTokenId_, to_, value_);
-        //address fromOwnerAddress = _allTokens[_allTokensIndex[fromTokenId_]].owner;
     }
-
-
-	function totalBalance() public view returns (uint256){
-	    return _totalBalance;
-	}
-
-	
-
-	
-
-
-    function transferFrom(
-        uint256 fromTokenId_,
-        uint256 toTokenId_,
-        uint256 value_
-    ) public payable virtual override {
-        /* check both tokens are CashCredit token */
-        transferFrom(address(this), fromTokenId_, address(this), toTokenId_, value_);
-    }
-    
-    
-
-	function addValue(uint256 fromTokenId_, uint256 toTokenId_, uint256 value_) public {
-	    
-	    uint256 discountBasisPts =  CashCredit(msg.sender).tokenDiscount(fromTokenId_);
-		uint256 uValue =  (10000 - discountBasisPts / (10 ** _decimals)) * value_ / 10000;
-			
-		ERC3525._mintValue(toTokenId_, value_); 
-	    _valueContract.transferFrom(msg.sender, address(this), uValue);
-	    
-	}
-	
-	
-	
-	function transferFrom(
-	    address fromContract_,
-        uint256 fromTokenId_,
-        address toContract_,
-        uint256 toTokenId_,
-        uint256 value_
-    ) public payable virtual {
-        require(fromContract_ == address(this), 'Transferring from wrong contract');
-        
-        if(toContract_ == address(this)){
-            uint256 tenKBasisPts = 10000;
-	        uint256 toTokenValue = super.balanceOf(toTokenId_);
-	        
-	        if(_tokenDiscount[fromTokenId_] != _tokenDiscount[toTokenId_]){
-	            _tokenDiscount[toTokenId_]  = tenKBasisPts * (10 ** _decimals) - ((tenKBasisPts  * (10 ** _decimals)  - _tokenDiscount[fromTokenId_]) * value_ + (tenKBasisPts  * (10 ** _decimals)  - _tokenDiscount[toTokenId_]) * toTokenValue) / (value_ + toTokenValue);
-	        }else{
-	            _tokenDiscount[toTokenId_]  = _tokenDiscount[toTokenId_];
-	        }
-        
-            super.transferFrom(fromTokenId_, toTokenId_, value_);
-        }else{
-            CashCredit toContract = CashCredit(toContract_);
-            uint256 discountBasisPts =  _tokenDiscount[fromTokenId_];
-			uint256 uValue =  (10000 - discountBasisPts / (10 ** _decimals)) * value_ / 10000;
-			
-            _valueContract.approve(toContract_, uValue);
-            toContract.addValue(fromTokenId_,  toTokenId_, value_);
-        }
-        
-    }
-
-
 
     function transferFrom(
         address from_,
@@ -377,5 +338,10 @@ contract CashCredit is Service {
     ) public payable virtual override {
         super.transferFrom( from_, to_, tokenId_);
     }
+
+    function totalBalance() public view returns (uint256){
+        return _totalBalance;
+    }
     
+
 }
