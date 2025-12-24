@@ -47,7 +47,7 @@ task("DeployTimeCredit", "Deploy Time contract")
   //.addPositionalParam("transfersAllowed")
   //.addPositionalParam("minAllowedValueTransfer")
   .addPositionalParam("dispTimeUnit")
-  .addPositionalParam("valueToken")
+  //.addPositionalParam("valueToken")
   //.addPositionalParam("moneyContractAddress")
   .addPositionalParam("decimals")
   .setAction(async (args) => {
@@ -67,7 +67,6 @@ task("DeployTimeCredit", "Deploy Time contract")
 											args.contractDescription,
 											args.contractImage,
 											args.dispTimeUnit,
-											args.valueToken,
 											args.decimals);
 	const hashOfTx = service.deployTransaction.hash	
    	await service.deployed();
