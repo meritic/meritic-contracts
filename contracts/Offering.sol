@@ -13,7 +13,7 @@ import "@solvprotocol/erc-3525/periphery/ERC3525MetadataDescriptor.sol";
 import "./ServiceMetadataDescriptor.sol";
 import "./Registry.sol";
 import "./Service.sol";
-import "./Pool.sol";
+
 
 
 
@@ -26,7 +26,7 @@ interface IServiceCredit {
 contract Offering is ERC3525, AccessControl {
     
     Registry internal _registry;
-    Pool internal _pool;
+
     uint256 internal _totalBalance;
     
     address internal _valueContractAddress;
@@ -118,7 +118,7 @@ contract Offering is ERC3525, AccessControl {
         
         _revenueAcct = revenueAcct_;
         _registry = Registry(registry_);
-        _pool = Pool(poolContract_);
+
         _valueContract = ERC20(underlyingContract_); 
         _valueContractAddress = underlyingContract_;
         _decimals = decimals_;
@@ -303,7 +303,7 @@ contract Offering is ERC3525, AccessControl {
    										_offerings[offeringId].image, 
    										_offerings[offeringId].properties);
 
-       _pool.poolToken(slotId_, tokenId);
+
        _totalBalance += value_;
        _approvedValues[slotId_][owner_] += value_;
        
@@ -383,12 +383,7 @@ contract Offering is ERC3525, AccessControl {
         
         uint256 newTokenId =  ERC3525.transferFrom(fromTokenId_, to_, value_);
         
-        //updateTokenMetadataDescriptor(newTokenId, uint256 offeringAssetId_, 
-  	    //									string memory tokenDescription_, string memory tokenImage_, string memory properties_)
-        _pool.poolToken(slotId_, newTokenId);
-        
-        
-        
+
         // int256 deltaVal = int256(value_ / _tokenOfferings[fromTokenId_].length);
         int256 totValue = 0;
         for(uint8 i=0; i < _tokenOfferings[fromTokenId_].length; ++i){

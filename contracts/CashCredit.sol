@@ -39,11 +39,6 @@ interface IOffering {
 }
 
 
-interface IPool {
-    function poolToken(uint256 slotId_, uint256 tokenId_) external;
-    function contractOf(uint256 networkTokenId_) external view returns (address);
-    function tokenDiscount(uint256 tokenId_) external view returns (uint256);
-}
 
 
 
@@ -52,28 +47,19 @@ interface IPool {
 contract CashCredit is Service, ILedgerUpdate {
     
 
-	IPool internal _poolContract;
-	
-	
-	uint256 _decimals;
-
 	uint256 _totalBalance;
 	uint256 internal _hundredPctMilliBasisPts = 10000 * 1000;
 	mapping(uint256 => uint256) private _tokenDiscount;
 
-	mapping(uint256 => uint256) internal _slotUsdcBalance;
+	mapping(uint256 => uint256) internal _slotUnderlyingBalance;
 	
-	event MintNetworkServiceToken(uint256  tokenId, uint256 slot, uint256 value);
 	event MintCashToken(uint256  tokenId, uint256 slot, uint256 value);
-	event RedeemForAsset(uint256  tokenId, address indexed redeemer, uint256 amount);
-	event RedeemForAccess(address indexed redeemer, uint256 creditAmount, uint256 valueAmount );
-	
-	IERC20 internal _usdc;
 
+	
     constructor(address revenueAcct_,
         		address slotRegistryContract_,
         		address poolContract_,
-        		address usdcContract_,
+        		address underlyingContract_, 
         		address mktAdmin_,
         		uint256 defaultSlot_,
         		string memory name_, 
@@ -81,12 +67,92 @@ contract CashCredit is Service, ILedgerUpdate {
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_,
-        		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'cash', decimals_) {
-        		
-       	_usdc = IERC20(usdcContract_); 
-        _decimals = decimals_;
-        _poolContract = IPool(poolContract_);
+        		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, underlyingContract_,  defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'cash', decimals_)
+    { }
+    
+    
+    
+    
+    
+  
+    
+    
+    function _consumeCore(uint256 tokenId_, uint256 consumeValue_) internal returns (uint256 totalUnderlyingValue) {
+        require(ERC3525.balanceOf(tokenId_) >= consumeValue_, "Insufficient credit balance");
 
+        uint256 discount;
+        if(isContractToken(tokenId_)){
+            discount = _tokenDiscount[tokenId_];
+        } else {
+            uint256 netTokenId = networkTokenId[tokenId_];
+            discount = (netTokenId != 0) ? _slotPool.tokenDiscount(netTokenId) : _slotPool.tokenDiscount(tokenId_);
+        }
+
+        totalUnderlyingValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * consumeValue_ / _hundredPctMilliBasisPts;
+
+        super._burnValue(tokenId_, consumeValue_);
+        _totalBalance -= consumeValue_;
+
+        uint256 slot = ERC3525.slotOf(tokenId_);
+        require(_slotUnderlyingBalance[slot] >= totalUnderlyingValue, "Insufficient slot liquidity");
+        _slotUnderlyingBalance[slot] -= totalUnderlyingValue;
+
+        return totalUnderlyingValue;
+    }
+    
+    
+    function consumeCredits(uint256 tokenId_, uint256 consumeValue_) external {
+        _consumeLogic(tokenId_, consumeValue_, new address[](0), new uint256[](0));
+    }
+    
+    function consumeWithRoyalties(
+        uint256 tokenId_, 
+        uint256 consumeValue_, 
+        address[] calldata royaltyRecipients, 
+        uint256[] calldata royaltyAmounts
+    ) external {
+        _consumeLogic(tokenId_, consumeValue_, royaltyRecipients, royaltyAmounts);
+    }
+    
+    
+    
+    function _consumeLogic(
+        uint256 tokenId_, 
+        uint256 consumeValue_, 
+        address[] memory royaltyRecipients, 
+        uint256[] memory royaltyAmounts
+    ) internal {
+        require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a service admin");
+        
+        // --- CORE BURN & SOLVENCY CHECK ---
+        uint256 totalUnderlyingValue = _consumeCore(tokenId_, consumeValue_);
+
+
+        uint256 totalRoyaltyUnderlying = 0;
+        
+        if (royaltyRecipients.length > 0) {
+            require(address(royaltyDistributor) != address(0), "Distributor not set");
+            require(royaltyRecipients.length == royaltyAmounts.length, "Array mismatch");
+
+            for(uint i = 0; i < royaltyAmounts.length; i++) {
+                totalRoyaltyUnderlying += royaltyAmounts[i];
+            }
+
+            // Enforce 10% Cap
+            require(totalRoyaltyUnderlying <= (totalUnderlyingValue * 1000) / 10000, "Royalties exceed 10%");
+
+            if (totalRoyaltyUnderlying > 0) {
+                royaltyDistributor.depositRoyalties(royaltyRecipients, royaltyAmounts);
+            }
+        }
+
+        uint256 platformRevenue = totalUnderlyingValue - totalRoyaltyUnderlying;
+        
+        if (platformRevenue > 0) {
+            require(_underlying.transfer(_revenueAddress, platformRevenue), "Revenue transfer failed");
+        }
+
+        emit CreditsConsumed(tokenId_, consumeValue_, totalUnderlyingValue, totalRoyaltyUnderlying);
     }
     
     
@@ -107,7 +173,7 @@ contract CashCredit is Service, ILedgerUpdate {
     ) public virtual returns (uint256) {
     
     	uint256 uValue = (_hundredPctMilliBasisPts - discountBasisPts_ / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
-    	_usdc.transferFrom(msg.sender, address(this), uValue);
+    	_underlying.transferFrom(msg.sender, address(this), uValue);
     	
     	uint256 tokenId;
     	
@@ -139,14 +205,11 @@ contract CashCredit is Service, ILedgerUpdate {
 		
 		_registry.registerTokenSlot(tokenId, slot_);
 		
-		if(slot_ != _defaultSlot){
-			_poolContract.poolToken(slot_, tokenId);
-		}
 		
 		emit MintCashToken(tokenId, slot_, value_);
 		_totalBalance += value_;
 		
-		_slotUsdcBalance[slot_] += uValue;
+		_slotUnderlyingBalance[slot_] += uValue;
 		
 		return tokenId;
   	}
@@ -173,7 +236,7 @@ contract CashCredit is Service, ILedgerUpdate {
         if(isContractToken(tokenId_)){
             return _tokenDiscount[tokenId_];    
         } else {
-            return _poolContract.tokenDiscount(tokenId_);
+            return _slotPool.tokenDiscount(tokenId_);
         }
     }
     
@@ -183,13 +246,13 @@ contract CashCredit is Service, ILedgerUpdate {
         require(ERC3525.ownerOf(tokenId_) == msg.sender, "Sender not authorized to redeem.");
         require(ERC3525.balanceOf(tokenId_) >= value_, "Insufficient credit balance");
 
-        // 1. Calculate Backing Value
+        // 1. Calculate Underlying Value
         uint256 discount;
         if(isContractToken(tokenId_)){
             discount = _tokenDiscount[tokenId_];
         } else {
             uint256 netTokenId = networkTokenId[tokenId_];
-            discount = (netTokenId != 0) ? _poolContract.tokenDiscount(netTokenId) : _poolContract.tokenDiscount(tokenId_);
+            discount = (netTokenId != 0) ? _slotPool.tokenDiscount(netTokenId) : _slotPool.tokenDiscount(tokenId_);
         }
 
         uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
@@ -199,11 +262,11 @@ contract CashCredit is Service, ILedgerUpdate {
 
         // 3. Update Ledger & Transfer
         uint256 slot = ERC3525.slotOf(tokenId_);
-        require(_slotUsdcBalance[slot] >= uValue, "Critical: Slot insolvent");
+        require(_slotUnderlyingBalance[slot] >= uValue, "Critical: Slot insolvent");
         
-        _slotUsdcBalance[slot] -= uValue;
+        _slotUnderlyingBalance[slot] -= uValue;
         
-        require(_usdc.transfer(msg.sender, uValue), "USDC Transfer failed");
+        require(_underlying.transfer(msg.sender, uValue), "Underlying Transfer failed");
     }
     
     
@@ -230,10 +293,10 @@ contract CashCredit is Service, ILedgerUpdate {
        uint256 discount = _tokenDiscount[creditTokenId_];
        uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
        
-       require(_slotUsdcBalance[slotId_] >= uValue, "Insufficient slot liquidity");
+       require(_slotUnderlyingBalance[slotId_] >= uValue, "Insufficient slot liquidity");
        
-       // Approve Offering contract to pull USDC
-       _usdc.approve(offeringContract_, uValue);
+       // Approve Offering contract to pull Underlying
+       _underlying.approve(offeringContract_, uValue);
        
        // This returns the Token ID of the purchased Asset (e.g., Access Pass or Item)
        uint256 assetTokenId = offering.mintFromCredits( 
@@ -245,7 +308,7 @@ contract CashCredit is Service, ILedgerUpdate {
                                                 value_, 
                                                 assetId_);
                                                 
-       _slotUsdcBalance[slotId_] -= uValue;
+       _slotUnderlyingBalance[slotId_] -= uValue;
        _totalBalance -= value_;
        
        super._burnValue(creditTokenId_, value_);
@@ -265,7 +328,7 @@ contract CashCredit is Service, ILedgerUpdate {
 	
 	function addSlotLiquidity(uint256 slotId, uint256 amount) external override {
         // Only accept liquidity updates, usually from trusted contracts
-        _slotUsdcBalance[slotId] += amount;
+        _slotUnderlyingBalance[slotId] += amount;
     }
     
 
@@ -295,7 +358,7 @@ contract CashCredit is Service, ILedgerUpdate {
             uint256 netTokenId = networkTokenId[fromTokenId_];
             require(netTokenId != 0, "CashCredit: invalid sender token ID");
             
-            address toContractAddress = _poolContract.contractOf(toTokenId_);
+            address toContractAddress = _slotPool.contractOf(toTokenId_);
             
             // Perform Credit Transfer
             super.transferFrom(fromTokenId_, toTokenId_, value_);
@@ -303,16 +366,16 @@ contract CashCredit is Service, ILedgerUpdate {
             // If target is another contract, move funds and notify
             if (toContractAddress != address(this)) {
                 
-                uint256 discount = (netTokenId != 0) ? _poolContract.tokenDiscount(netTokenId) : _poolContract.tokenDiscount(fromTokenId_);
+                uint256 discount = (netTokenId != 0) ? _slotPool.tokenDiscount(netTokenId) : _slotPool.tokenDiscount(fromTokenId_);
                 uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
                 
                 uint256 slot = ERC3525.slotOf(fromTokenId_);
 
-                require(_slotUsdcBalance[slot] >= uValue, "Insufficient liquidity for transfer");
-                _slotUsdcBalance[slot] -= uValue;
+                require(_slotUnderlyingBalance[slot] >= uValue, "Insufficient liquidity for transfer");
+                _slotUnderlyingBalance[slot] -= uValue;
                 _totalBalance -= value_;
 
-                require(_usdc.transfer(toContractAddress, uValue), "USDC transfer failed");
+                require(_underlying.transfer(toContractAddress, uValue), "Underlying transfer failed");
 
                 ILedgerUpdate(toContractAddress).addSlotLiquidity(slot, uValue);
             }

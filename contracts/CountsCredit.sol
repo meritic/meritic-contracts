@@ -15,28 +15,28 @@ import "./Pool.sol";
 
 contract CountsCredit is Service {
     
-	uint256 _decimals;
-	IERC20 private _underlyingUSDC;
-	address _revenueAcct;
+
 	uint256 _totalBalance;
 	mapping(uint256 => uint256) private _countValueRate;
 	
-	
-	event MintNetworkServiceToken(uint256  tokenId, uint256 slot, uint256 value);
 	event MintCountsToken(uint256  tokenId, uint256 slot, uint256 value);
+	/*event MintNetworkServiceToken(uint256  tokenId, uint256 slot, uint256 value);
+	
 	event CreditsConsumed(uint256 indexed tokenId, uint256 consumedValue, uint256 underlyingBurntValue);
-	
-	
-	Pool internal _poolContract;
+	*/
+
 	
 
-	// Tracks the total backing USDC held by this contract for specific slots
-	mapping(uint256 => uint256) internal _slotUsdcBalance;
+	// Tracks the total backing underlying held by this contract for specific slots
+	mapping(uint256 => uint256) internal _slotUnderlyingBalance;
 
+	
+	
+	
     constructor(address revenueAcct_,
         		address slotRegistryContract_,
         		address poolContract_,
-        		address USDContract_,
+        		address underlyingContract_, 
         		address mktAdmin_,
         		uint256 defaultSlot_,
         		string memory name_, 
@@ -44,44 +44,97 @@ contract CountsCredit is Service {
         		string memory baseuri_,
         		string memory contractDescription_,
         		string memory contractImage_, 
-        		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'counts', decimals_) {
+        		uint8 decimals_) Service(revenueAcct_, mktAdmin_, slotRegistryContract_, poolContract_, underlyingContract_, defaultSlot_, name_, symbol_ , baseuri_, contractDescription_, contractImage_, 'counts', decimals_) 
+    { }
+    
+    
 
-		_underlyingUSDC = IERC20(USDContract_); 
+    
+    
+    function consumeCredits(uint256 tokenId_, uint256 value_) external {
+        _consumeLogic(tokenId_, value_, new address[](0), new uint256[](0));
+    }
+
+
+    function consumeWithRoyalties(
+        uint256 tokenId_, 
+        uint256 consumeValue_, 
+        address[] calldata royaltyRecipients, 
+        uint256[] calldata royaltyAmounts
+    ) external {
+        _consumeLogic(tokenId_, consumeValue_, royaltyRecipients, royaltyAmounts);
+    }
+
+
+    function _consumeLogic(
+        uint256 tokenId_, 
+        uint256 consumeValue_, 
+        address[] memory royaltyRecipients, 
+        uint256[] memory royaltyAmounts
+    ) internal {
+        require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a service admin");
         
 
-        _revenueAcct = revenueAcct_;
-        _decimals = decimals_;
-        _poolContract = Pool(poolContract_);
+        uint256 totalUnderlyingValue = _consumeCore(tokenId_, consumeValue_);
+
+
+        uint256 totalRoyaltyUnderlying = 0;
+        
+        if (royaltyRecipients.length > 0) {
+            require(address(royaltyDistributor) != address(0), "Distributor not set");
+            require(royaltyRecipients.length == royaltyAmounts.length, "Array mismatch");
+
+            for(uint i = 0; i < royaltyAmounts.length; i++) {
+                totalRoyaltyUnderlying += royaltyAmounts[i];
+            }
+
+            // Enforce 10% Cap
+            require(totalRoyaltyUnderlying <= (totalUnderlyingValue * 1000) / 10000, "Royalties exceed 10%");
+
+            if (totalRoyaltyUnderlying > 0) {
+                royaltyDistributor.depositRoyalties(royaltyRecipients, royaltyAmounts);
+            }
+        }
+
+
+        uint256 platformRevenue = totalUnderlyingValue - totalRoyaltyUnderlying;
+        
+        if (platformRevenue > 0) {
+            require(_underlying.transfer(_revenueAddress, platformRevenue), "Revenue transfer failed");
+        }
+
+        emit CreditsConsumed(tokenId_, consumeValue_, totalUnderlyingValue, totalRoyaltyUnderlying);
+    }
+
+
+    function _consumeCore(uint256 tokenId_, uint256 consumeValue_) internal returns (uint256 totalUnderlyingValue) {
+        require(ERC3525.balanceOf(tokenId_) >= consumeValue_, "Insufficient credit balance");
+
+        // Calculate Backing underlying value based on RATE
+        uint256 rate;
+        if (isContractToken(tokenId_)) {
+            rate = _countValueRate[tokenId_];
+        } else {
+            uint256 netTokenId = networkTokenId[tokenId_];
+            rate = (netTokenId != 0) ? _slotPool.tokenValueRate(netTokenId) : _slotPool.tokenValueRate(tokenId_);
+        }
+        
+        // Value = (Count * Rate) / Precision
+        totalUnderlyingValue = (rate * consumeValue_) / (10 ** _decimals);
+
+        // Burn Credits
+        super._burnValue(tokenId_, consumeValue_);
+        _totalBalance -= consumeValue_;
+
+        // Update Solvency Ledger
+        uint256 slot = ERC3525.slotOf(tokenId_);
+        require(_slotUnderlyingBalance[slot] >= totalUnderlyingValue, "Insufficient slot liquidity");
+        _slotUnderlyingBalance[slot] -= totalUnderlyingValue;
+
+        return totalUnderlyingValue;
     }
     
     
-    /**
-	 * @notice Allows a service admin to consume a specified value of credits from a token.
-	 * @dev This should be called by the trusted backend service wallet.
-	 * @param tokenId_ The ID of the token from which to consume credits.
-	 * @param value_ The amount of credits to consume (in the token's native decimals).
-	 */
-	function consumeCredits(uint256 tokenId_, uint256 value_) external {
-	    require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a service admin");
-	    require(balanceOf(tokenId_) >= value_, "Insufficient credit balance");
-	
-	    uint256 uValue; 
-	    if (isContractToken(tokenId_)) {
-	        uValue = _countValueRate[tokenId_] * value_ / (10**_decimals);
-	    } else if (isInternalToken(tokenId_)) {
-	        uint256 netTokenId = networkTokenId[tokenId_];
-	        uint256 rate = (netTokenId != 0) ? _poolContract.tokenValueRate(netTokenId) : _poolContract.tokenValueRate(tokenId_);
-	        uValue = rate * value_ / (10**_decimals);
-	    } else {
-	        revert("Token is not recognized");
-	    }
-	
-	    super._burnValue(tokenId_, value_);
-	    
-	    _totalBalance -= value_;
-	
-	    emit CreditsConsumed(tokenId_, value_, uValue);
-	}
     
     
     
@@ -99,7 +152,7 @@ contract CountsCredit is Service {
                 string memory property_
     ) public virtual returns (uint256) {
     	
-    	_underlyingUSDC.transferFrom(msg.sender, address(this), paidValue_);
+    	_underlying.transferFrom(msg.sender, address(this), paidValue_);
     	
     	uint256 tokenId;
     	
@@ -132,7 +185,7 @@ contract CountsCredit is Service {
    		
    		emit MintCountsToken(tokenId, slot_, countValue_);
    		_totalBalance += countValue_;
-   		_slotUsdcBalance[slot_] += paidValue_;
+   		_slotUnderlyingBalance[slot_] += paidValue_;
    		return tokenId;
 	}
 	
@@ -157,7 +210,7 @@ contract CountsCredit is Service {
    		} else {
    			// Network/Pool token logic (if applicable);
    			uint256 netTokenId = networkTokenId[tokenId_];
-   			uint256 rate = (netTokenId != 0) ? _poolContract.tokenValueRate(netTokenId) : _poolContract.tokenValueRate(tokenId_);
+   			uint256 rate = (netTokenId != 0) ? _slotPool.tokenValueRate(netTokenId) : _slotPool.tokenValueRate(tokenId_);
    			uValue = (rate * value_) / (10 ** _decimals);
 		}
     
@@ -167,27 +220,27 @@ contract CountsCredit is Service {
 	   }else if(isInternalToken(tokenId_)){
 	       uint256 netTokenId = networkTokenId[tokenId_];
 	       if(netTokenId != 0){
-	           uValue = _poolContract.tokenValueRate(netTokenId) * value_ / (10 ** _decimals); 
+	           uValue = _slotPool.tokenValueRate(netTokenId) * value_ / (10 ** _decimals); 
 	       }else{
-	           uValue = _poolContract.tokenValueRate(tokenId_) * value_ / (10 ** _decimals); 
+	           uValue = _slotPool.tokenValueRate(tokenId_) * value_ / (10 ** _decimals); 
 	       }
 	   }
 	   
 	   super._burnValue(tokenId_, value_);
 	   _totalBalance -= value_;
 	   
-	   // 4. Update Solvency Accounting
+	   // Update Solvency Accounting
 	   uint256 slot = ERC3525.slotOf(tokenId_);
 	   
 	   
 	   // Safety check: Ensure we don't underflow (implies contract is insolvent for this slot)
 	   
-	   require(_slotUsdcBalance[slot] >= uValue, "Critical: Slot insufficient backing funds");
-	   _slotUsdcBalance[slot] -= uValue;
+	   require(_slotUnderlyingBalance[slot] >= uValue, "Critical: Slot insufficient backing funds");
+	   _slotUnderlyingBalance[slot] -= uValue;
 	   
-	   // 5. Transfer Cash
+	   // Transfer Cash
 	   
-	   require(_underlyingUSDC.transfer(msg.sender, uValue), "USDC Transfer failed");
+	   require(_underlying.transfer(msg.sender, uValue), "Underlying Transfer failed");
 	   // emit CreditsRedeemed(msg.sender, tokenId_, value_, uValue);
 	}
     
@@ -242,19 +295,19 @@ contract CountsCredit is Service {
   			// 1. Perform the Credit Transfer (ERC-3525)
   			super.transferFrom(fromTokenId_, toTokenId_, value_);
   			
-  			address toContractAddress = _poolContract.contractOf(toTokenId_);
+  			address toContractAddress = _slotPool.contractOf(toTokenId_);
   			
 
   			if (toContractAddress != address(this)) {
-  				uint256 countValueRate = (netTokenId != 0) ? _poolContract.tokenValueRate(netTokenId) : _poolContract.tokenValueRate(fromTokenId_);
+  				uint256 countValueRate = (netTokenId != 0) ? _slotPool.tokenValueRate(netTokenId) : _slotPool.tokenValueRate(fromTokenId_);
   				uint256 uValue = countValueRate * value_ / (10 ** _decimals);
   				uint256 slot = ERC3525.slotOf(fromTokenId_);
   				
-  				require(_slotUsdcBalance[slot] >= uValue, "Insufficient backing funds for transfer");
-  				_slotUsdcBalance[slot] -= uValue;
+  				require(_slotUnderlyingBalance[slot] >= uValue, "Insufficient backing funds for transfer");
+  				_slotUnderlyingBalance[slot] -= uValue;
   				_totalBalance -= value_; 
   				
-  				require(_underlyingUSDC.transfer(toContractAddress, uValue), "USDC transfer failed");
+  				require(_underlying.transfer(toContractAddress, uValue), "Underlying transfer failed");
   				
   				ILedgerUpdate(toContractAddress).addSlotLiquidity(slot, uValue);
 			}
@@ -285,7 +338,7 @@ contract CountsCredit is Service {
     	// Security: Ideally check that msg.sender is a valid contract in your Registry
     	require(_registry.isRegisteredContract(msg.sender), "Caller not authorized");
     	
-    	 _slotUsdcBalance[slotId] += amount;
+    	 _slotUnderlyingBalance[slotId] += amount;
 }
     
     

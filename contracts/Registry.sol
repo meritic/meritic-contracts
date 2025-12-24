@@ -199,8 +199,6 @@ contract Registry is AccessControl {
    function approveContractForSlot(address contract_, uint256 slotId_) public  {
         require(_isSlotAdmin[slotId_][msg.sender], "Sender not authorized to approve on this slot");
         
-        //uint256 defaultSlot = _contractSlot[contract_];
-        //address contractAdmin_ = Service(contract_).contractAdmin();
         address contractAdmin_ = IServiceAdmin(contract_).contractAdmin();
         _isSlotAdmin[slotId_][contractAdmin_] = true;
         
