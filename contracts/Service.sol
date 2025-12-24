@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import "@solvprotocol/erc-3525/ERC3525.sol";
 
-//import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"; 
+
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
@@ -18,6 +18,8 @@ import "./Pool.sol";
 
 import "./underlying/WUSDC.sol";
 import "./extensions/Underlying.sol";
+
+
 
 
 contract Service is ERC3525, AccessControl {
@@ -103,6 +105,7 @@ contract Service is ERC3525, AccessControl {
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC3525, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
+	    
     
     
     function _afterTokenTransfer(
@@ -182,14 +185,20 @@ contract Service is ERC3525, AccessControl {
         string memory property_
 	) public virtual returns (uint256) {
        
-        uint256 existingTokenId = _latestUserTokenBySlot[owner_][slot_];
+        uint256 existingTokenId = 0;
         bool found = false;
 
-        // Verify the cached token is valid and still owned by the user
-        // (They might have sold it since we cached it)
-        if (existingTokenId != 0 && _exists(existingTokenId)) {
-            if (ownerOf(existingTokenId) == owner_ && slotOf(existingTokenId) == slot_ && networkTokenId[existingTokenId] == 0) {
+        // Use standard balance
+        uint256 userTokenCount = ERC3525.balanceOf(owner_);
+
+        // Iterate using the built-in function
+        for (uint256 i = 0; i < userTokenCount; i++) {
+            uint256 tokenId = tokenOfOwnerByIndex(owner_, i);
+            
+            if (ERC3525.slotOf(tokenId) == slot_ && networkTokenId[tokenId] == 0) {
+                existingTokenId = tokenId;
                 found = true;
+                break;
             }
         }
 
