@@ -8,8 +8,8 @@ const { task }  = require('hardhat/config');
 
 task("DeployPool", "Deploy Pool contract")
 	.addPositionalParam("registryContractAddress")
-	.addPositionalParam("mktAdminAddress")
-	.addPositionalParam("valueCurrency")
+	//.addPositionalParam("mktAdminAddress")
+	//.addPositionalParam("valueCurrency")
 	.addPositionalParam("name")
 	.addPositionalParam("symbol")
 	.addPositionalParam("baseUri")
@@ -20,7 +20,7 @@ task("DeployPool", "Deploy Pool contract")
 
     const Pool = await ethers.getContractFactory("Pool");
     const pool = await Pool.deploy(	args.registryContractAddress,
-    											args.valueCurrency,
+    											//args.valueCurrency,
 												args.name,
 												args.symbol,
 												args.baseUri,
