@@ -181,8 +181,6 @@ contract CashCredit is Service, ILedgerUpdate {
     
         require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a minter");
         
-        require(paidValue_ <= faceValue_, "CashCredit: Paid value cannot exceed Face value");
-
         uint256 discountBasisPts = 0;
         if (faceValue_ > 0) {
             discountBasisPts = ((faceValue_ - paidValue_) * _hundredPctMilliBasisPts) / faceValue_;
