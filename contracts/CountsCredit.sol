@@ -152,6 +152,7 @@ contract CountsCredit is Service {
                 string memory property_
     ) public virtual returns (uint256) {
     	
+    	require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a minter");
     	_underlying.transferFrom(msg.sender, address(this), paidValue_);
     	
     	uint256 tokenId;

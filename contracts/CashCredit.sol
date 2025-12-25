@@ -160,75 +160,83 @@ contract CashCredit is Service, ILedgerUpdate {
     
 
  
- 
- 	
-    function mintWithDiscount(address owner_, 
-        			uint256 slot_, 
-        			uint256 value_, // The Face Value of the credit (e.g., $100 voucher)
-        			uint256 discountBasisPts_, // The discount (e.g., 10% off)
-        			string memory uuid_,
-        			string memory tokenDescription_,
-        			string memory tokenImage_,
-        			string memory property_
+ 	/**
+     * @notice Mints a CashCredit token by specifying Face Value and Amount Paid.
+     * @dev Calculates the discount automatically.
+     * @param owner_ Recipient
+     * @param slot_ Slot ID
+     * @param faceValue_ The amount of Credits the user sees (e.g. 100.00)
+     * @param paidValue_ The amount of Underlying actually paid (e.g. 90.00)
+     */
+    function mintCash(
+        address owner_, 
+        uint256 slot_, 
+        uint256 faceValue_, 
+        uint256 paidValue_, 
+        string memory uuid_,
+        string memory tokenDescription_,
+        string memory tokenImage_,
+        string memory property_
     ) public virtual returns (uint256) {
     
-    	uint256 uValue = (_hundredPctMilliBasisPts - discountBasisPts_ / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
-    	_underlying.transferFrom(msg.sender, address(this), uValue);
-    	
-    	uint256 tokenId;
-    	
-    	if(slot_ == _defaultSlot){
-    		// Local Mint (Utilizes Service.sol Smart Minting)
-    		tokenId = Service.mint(owner_, slot_, value_, uuid_, tokenDescription_, tokenImage_, property_);
-      
-       		uint256 currentBalance = ERC3525.balanceOf(tokenId);
-       		uint256 prevBalance = currentBalance - value_;
-       		
-       		if (prevBalance > 0) {
-       			// Token existed. We must blend the discount so backing value remains correct.
-       			// Formula: (OldFace * OldDiscount + NewFace * NewDiscount) / TotalFace
-       			uint256 oldDiscount = _tokenDiscount[tokenId];
-       			uint256 weightedDiscount = ((prevBalance * oldDiscount) + (value_ * discountBasisPts_)) / currentBalance;
-       			_tokenDiscount[tokenId] = weightedDiscount;
-   			} else {
-   				// New Token
-   				_tokenDiscount[tokenId] = discountBasisPts_;
-			}
-		} else {
-			// Network Mint
-			// Service.networkMintWithDiscount usually creates a fresh token ID
-			tokenId = Service.networkMintWithDiscount(owner_, slot_, value_, discountBasisPts_, uuid_, tokenDescription_, tokenImage_, property_);
-			// For network tokens, assume fresh ID, so set discount directly
-			_tokenDiscount[tokenId] = discountBasisPts_;
-			emit MintNetworkServiceToken(networkTokenId[tokenId], slot_, value_);
-		}
-		
-		_registry.registerTokenSlot(tokenId, slot_);
-		
-		
-		emit MintCashToken(tokenId, slot_, value_);
-		_totalBalance += value_;
-		
-		_slotUnderlyingBalance[slot_] += uValue;
-		
-		return tokenId;
-  	}
-  
+        require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a minter");
+        
+        require(paidValue_ <= faceValue_, "CashCredit: Paid value cannot exceed Face value");
 
+        uint256 discountBasisPts = 0;
+        if (faceValue_ > 0) {
+            discountBasisPts = ((faceValue_ - paidValue_) * _hundredPctMilliBasisPts) / faceValue_;
+        }
+
+        _underlying.transferFrom(msg.sender, address(this), paidValue_);
+        
+        uint256 tokenId;
+        
+        if(slot_ == _defaultSlot){
+            tokenId = Service.mint(owner_, slot_, faceValue_, uuid_, tokenDescription_, tokenImage_, property_);
+            
+            // Weighted Average Logic
+            uint256 currentBalance = ERC3525.balanceOf(tokenId);
+            uint256 prevBalance = currentBalance - faceValue_;
+
+            if (prevBalance > 0) {
+                uint256 oldDiscount = _tokenDiscount[tokenId];
+                uint256 weightedDiscount = ((prevBalance * oldDiscount) + (faceValue_ * discountBasisPts)) / currentBalance;
+                _tokenDiscount[tokenId] = weightedDiscount;
+            } else {
+                _tokenDiscount[tokenId] = discountBasisPts;
+            }
+        } else {
+            tokenId = Service.networkMintWithDiscount(owner_, slot_, faceValue_, discountBasisPts, uuid_, tokenDescription_, tokenImage_, property_);
+            _tokenDiscount[tokenId] = discountBasisPts;
+            emit MintNetworkServiceToken(networkTokenId[tokenId], slot_, faceValue_);
+        }
+        
+        _registry.registerTokenSlot(tokenId, slot_); 
+
+        emit MintCashToken(tokenId, slot_, faceValue_);
+        _totalBalance += faceValue_;
+        
+        _slotUnderlyingBalance[slot_] += paidValue_;
+        
+        return tokenId;
+    }
+    
     
     
     function mint(
         address owner_, 
         uint256 slot_, 
-        uint256 value_,
+        uint256 value_, 
         string memory uuid_,
         string memory tokenDescription_,
         string memory tokenImage_,
         string memory property_
     ) public virtual override returns (uint256) {
-    	return mintWithDiscount(owner_, slot_, value_, 0, uuid_, tokenDescription_, tokenImage_, property_);
-    	
-  	}
+    
+        return mintCash(owner_, slot_, value_, value_, uuid_, tokenDescription_, tokenImage_, property_);
+        
+    }
   	
   	
   	

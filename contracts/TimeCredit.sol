@@ -170,6 +170,8 @@ contract TimeCredit is Service, ILedgerUpdate {
         uint256 minAllowedValueTransfer_
     ) public virtual returns (uint256) {
         
+        require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a minter");
+        
         uint256 timeValueSeconds = toSeconds(timeValue_);
         
  		require(validStart_ <= validExpiration_, "TimeCredit: valid start time must be less than expiration");
