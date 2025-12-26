@@ -49,7 +49,7 @@ contract CashCredit is Service, ILedgerUpdate {
 
 	uint256 _totalBalance;
 	uint256 internal _hundredPctMilliBasisPts = 10000 * 1000;
-	mapping(uint256 => uint256) private _tokenDiscount;
+	mapping(uint256 => uint256) private _tokenValueRate;
 
 	mapping(uint256 => uint256) internal _slotUnderlyingBalance;
 	
@@ -80,15 +80,17 @@ contract CashCredit is Service, ILedgerUpdate {
     function _consumeCore(uint256 tokenId_, uint256 consumeValue_) internal returns (uint256 totalUnderlyingValue) {
         require(ERC3525.balanceOf(tokenId_) >= consumeValue_, "Insufficient credit balance");
 
-        uint256 discount;
+        uint256 rate;
         if(isContractToken(tokenId_)){
-            discount = _tokenDiscount[tokenId_];
+            rate = _tokenValueRate[tokenId_];
         } else {
             uint256 netTokenId = networkTokenId[tokenId_];
-            discount = (netTokenId != 0) ? _slotPool.tokenDiscount(netTokenId) : _slotPool.tokenDiscount(tokenId_);
+            rate = (netTokenId != 0) ? _slotPool.tokenValueRate(netTokenId) : _slotPool.tokenValueRate(tokenId_);
         }
-
-        totalUnderlyingValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * consumeValue_ / _hundredPctMilliBasisPts;
+        
+        // Formula: (Face * Rate) / 1e18
+		totalUnderlyingValue = (consumeValue_ * rate) / (10 ** 18);
+        
 
         super._burnValue(tokenId_, consumeValue_);
         _totalBalance -= consumeValue_;
@@ -178,47 +180,52 @@ contract CashCredit is Service, ILedgerUpdate {
         string memory tokenImage_,
         string memory property_
     ) public virtual returns (uint256) {
-    
-        require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a minter");
         
-        uint256 discountBasisPts = 0;
-        if (faceValue_ > 0) {
-            discountBasisPts = ((faceValue_ - paidValue_) * _hundredPctMilliBasisPts) / faceValue_;
-        }
-
+        require(hasRole(SERVICE_ADMIN_ROLE, msg.sender), "Caller is not a minter");
         _underlying.transferFrom(msg.sender, address(this), paidValue_);
         
         uint256 tokenId;
         
+        // Calculate Rate (Using 18 decimals of precision for rate)
+        // Rate = (Paid * 1e18) / Face
+        // Example: Paid $10 (10e6), Face 5 (5e6) -> Rate = 2e18 (200% value)
+        uint256 newRate = (paidValue_ * (10 ** 18)) / faceValue_;
+
         if(slot_ == _defaultSlot){
             tokenId = Service.mint(owner_, slot_, faceValue_, uuid_, tokenDescription_, tokenImage_, property_);
             
-            // Weighted Average Logic
             uint256 currentBalance = ERC3525.balanceOf(tokenId);
             uint256 prevBalance = currentBalance - faceValue_;
 
-            if (prevBalance > 0) {
-                uint256 oldDiscount = _tokenDiscount[tokenId];
-                uint256 weightedDiscount = ((prevBalance * oldDiscount) + (faceValue_ * discountBasisPts)) / currentBalance;
-                _tokenDiscount[tokenId] = weightedDiscount;
+            if (prevBalance > 0 && _tokenValueRate[tokenId] > 0) {
+                // Weighted Average Rate
+                // (OldBal * OldRate) + (NewBal * NewRate) / TotalBal
+                uint256 oldVal = prevBalance * _tokenValueRate[tokenId];
+                uint256 newVal = faceValue_ * newRate;
+                _tokenValueRate[tokenId] = (oldVal + newVal) / currentBalance;
             } else {
-                _tokenDiscount[tokenId] = discountBasisPts;
+                _tokenValueRate[tokenId] = newRate;
             }
         } else {
-            tokenId = Service.networkMintWithDiscount(owner_, slot_, faceValue_, discountBasisPts, uuid_, tokenDescription_, tokenImage_, property_);
-            _tokenDiscount[tokenId] = discountBasisPts;
+         
+            tokenId = Service.networkMintWithValueRate(owner_, slot_, faceValue_, newRate, uuid_, tokenDescription_, tokenImage_, property_);
+            _tokenValueRate[tokenId] = newRate;
             emit MintNetworkServiceToken(networkTokenId[tokenId], slot_, faceValue_);
         }
         
         _registry.registerTokenSlot(tokenId, slot_); 
-
         emit MintCashToken(tokenId, slot_, faceValue_);
-        _totalBalance += faceValue_;
         
+        _totalBalance += faceValue_;
         _slotUnderlyingBalance[slot_] += paidValue_;
         
         return tokenId;
     }
+    
+    
+    
+    
+    
     
     
     
@@ -238,11 +245,11 @@ contract CashCredit is Service, ILedgerUpdate {
   	
   	
   	
-  	function tokenDiscount(uint256 tokenId_) external view returns (uint256) {
-        if(isContractToken(tokenId_)){
-            return _tokenDiscount[tokenId_];    
-        } else {
-            return _slotPool.tokenDiscount(tokenId_);
+  	function tokenValueRate(uint256 tokenId_) external view returns (uint256) {
+  		if(isContractToken(tokenId_)){ 
+        	return _tokenValueRate[tokenId_]; 
+        } else { 
+        	return _slotPool.tokenValueRate(tokenId_); 
         }
     }
     
@@ -252,21 +259,24 @@ contract CashCredit is Service, ILedgerUpdate {
         require(ERC3525.ownerOf(tokenId_) == msg.sender, "Sender not authorized to redeem.");
         require(ERC3525.balanceOf(tokenId_) >= value_, "Insufficient credit balance");
 
-        // 1. Calculate Underlying Value
-        uint256 discount;
+        uint256 rate;
         if(isContractToken(tokenId_)){
-            discount = _tokenDiscount[tokenId_];
+            rate = _tokenValueRate[tokenId_];
         } else {
             uint256 netTokenId = networkTokenId[tokenId_];
-            discount = (netTokenId != 0) ? _slotPool.tokenDiscount(netTokenId) : _slotPool.tokenDiscount(tokenId_);
+            rate = (netTokenId != 0) ? _slotPool.tokenValueRate(netTokenId) : _slotPool.tokenValueRate(tokenId_);
         }
 
-        uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
+        // Calculate Underlying Value
+        // Formula: (CreditAmount * Rate) / RatePrecision (1e18)
+        // Note: Rate was calculated as (Paid * 1e18) / Face in minting.
+        uint256 uValue = (value_ * rate) / (10 ** 18);
 
+        // Burn Credits
         super._burnValue(tokenId_, value_);
         _totalBalance -= value_;
 
-        // 3. Update Ledger & Transfer
+        // Update Ledger & Solvency Check
         uint256 slot = ERC3525.slotOf(tokenId_);
         require(_slotUnderlyingBalance[slot] >= uValue, "Critical: Slot insolvent");
         
@@ -275,20 +285,13 @@ contract CashCredit is Service, ILedgerUpdate {
         require(_underlying.transfer(msg.sender, uValue), "Underlying Transfer failed");
     }
     
+ 
     
     
     
     
-    function redeemForAsset(
-        address offeringContract_, 
-        uint256 creditTokenId_, 
-        uint256 slotId_, 
-        uint256 value_,
-        string memory assetId_
-    ) external returns (uint256) {
-       
+    function redeemForAsset(address offeringContract_, uint256 creditTokenId_, uint256 slotId_, uint256 value_, string memory assetId_) external returns (uint256) {
        IOffering offering = IOffering(offeringContract_);
-       
        require(ERC3525.ownerOf(creditTokenId_) == msg.sender || _registry.hasAccess('MKT_ADMIN', msg.sender), "Sender is not authorized.");
        require(ERC3525.balanceOf(creditTokenId_) >= value_, 'Value exceeds credit balance');
        
@@ -296,100 +299,73 @@ contract CashCredit is Service, ILedgerUpdate {
            offering.approveCredit(address(this));
        }
        
-       uint256 discount = _tokenDiscount[creditTokenId_];
-       uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
+       uint256 rate = _tokenValueRate[creditTokenId_];
+       uint256 uValue = (value_ * rate) / (10 ** 18);
        
        require(_slotUnderlyingBalance[slotId_] >= uValue, "Insufficient slot liquidity");
        
-       // Approve Offering contract to pull Underlying
        _underlying.approve(offeringContract_, uValue);
        
-       // This returns the Token ID of the purchased Asset (e.g., Access Pass or Item)
-       uint256 assetTokenId = offering.mintFromCredits( 
-                                                address(this), 
-                                                creditTokenId_, 
-                                                discount, 
-                                                msg.sender, 
-                                                slotId_, 
-                                                value_, 
-                                                assetId_);
+       // Note: Offering mintFromCredits expects Discount/Rate arg. 
+       // If you are standardizing on Rate, Offering.sol also needs to interpret this arg as Rate.
+       uint256 assetTokenId = offering.mintFromCredits(address(this), creditTokenId_, rate, msg.sender, slotId_, value_, assetId_);
                                                 
        _slotUnderlyingBalance[slotId_] -= uValue;
        _totalBalance -= value_;
-       
        super._burnValue(creditTokenId_, value_);
-       
        emit RedeemForAsset(assetTokenId, msg.sender, uValue);
        return assetTokenId;
     }
     
     
-    
-	
-	
-	
-	
-	
-	
-	
 	function addSlotLiquidity(uint256 slotId, uint256 amount) external override {
         // Only accept liquidity updates, usually from trusted contracts
         _slotUnderlyingBalance[slotId] += amount;
     }
     
-
-	function transferFrom(
-        uint256 fromTokenId_,
-        uint256 toTokenId_,
-        uint256 value_
-    ) public payable virtual override {
-        
-        // Scenario 1: Same Contract Transfer
+    
+    
+    
+    function calcToTokenRate(uint256 fromId, uint256 toId, uint256 amount) private view returns (uint256){
+        uint256 toBal = ERC3525.balanceOf(toId);
+        return (_tokenValueRate[fromId] * amount + _tokenValueRate[toId] * toBal) / (amount + toBal);
+    }
+    
+    
+    
+    
+    function transferFrom(uint256 fromTokenId_, uint256 toTokenId_, uint256 value_) public payable virtual override {
         if(isContractToken(fromTokenId_) && isContractToken(toTokenId_)){
-            
-            uint256 toTokenValue = ERC3525.balanceOf(toTokenId_);
-            uint256 fromDiscount = _tokenDiscount[fromTokenId_];
-            uint256 toDiscount = _tokenDiscount[toTokenId_];
-
-            if(fromDiscount != toDiscount){
-                // Weighted Average Discount
-                _tokenDiscount[toTokenId_] = ((fromDiscount * value_) + (toDiscount * toTokenValue)) / (value_ + toTokenValue);
+            if(_tokenValueRate[fromTokenId_] != _tokenValueRate[toTokenId_]){
+                _tokenValueRate[toTokenId_] = calcToTokenRate(fromTokenId_, toTokenId_, value_);
             }
             super.transferFrom(fromTokenId_, toTokenId_, value_);
-            
-        } 
-        // Scenario 2: Network Transfer (Cross-Contract)
-        else if(!isContractToken(fromTokenId_) && !isContractToken(toTokenId_)){
-            
+        } else if(!isContractToken(fromTokenId_) && !isContractToken(toTokenId_)){
             uint256 netTokenId = networkTokenId[fromTokenId_];
-            require(netTokenId != 0, "CashCredit: invalid sender token ID");
-            
+            require(netTokenId != 0, "CashCredit: invalid sender");
             address toContractAddress = _slotPool.contractOf(toTokenId_);
             
-            // Perform Credit Transfer
             super.transferFrom(fromTokenId_, toTokenId_, value_);
-            
             // If target is another contract, move funds and notify
             if (toContractAddress != address(this)) {
-                
-                uint256 discount = (netTokenId != 0) ? _slotPool.tokenDiscount(netTokenId) : _slotPool.tokenDiscount(fromTokenId_);
-                uint256 uValue = (_hundredPctMilliBasisPts - discount / (10 ** _decimals)) * value_ / _hundredPctMilliBasisPts;
-                
+                // Calculate Value using Rate
+                uint256 netId = (netTokenId != 0) ? netTokenId : fromTokenId_;
+                uint256 rate = _slotPool.tokenValueRate(netId);
+                uint256 uValue = (value_ * rate) / (10 ** 18);
                 uint256 slot = ERC3525.slotOf(fromTokenId_);
 
-                require(_slotUnderlyingBalance[slot] >= uValue, "Insufficient liquidity for transfer");
+                require(_slotUnderlyingBalance[slot] >= uValue, "Insufficient liquidity");
                 _slotUnderlyingBalance[slot] -= uValue;
                 _totalBalance -= value_;
 
-                require(_underlying.transfer(toContractAddress, uValue), "Underlying transfer failed");
-
+                require(_underlying.transfer(toContractAddress, uValue), "Transfer failed");
                 ILedgerUpdate(toContractAddress).addSlotLiquidity(slot, uValue);
             }
-            
         } else {
             revert("CashCredit: transfer type mismatch");
         }
     }
+    
     
     
     function transferFrom(

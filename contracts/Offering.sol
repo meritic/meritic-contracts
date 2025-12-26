@@ -1,7 +1,5 @@
-
-//SPDX-License-Identifier: 	BUSL-1.1
+//SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.9;
-
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -12,20 +10,17 @@ import "@solvprotocol/erc-3525/periphery/ERC3525MetadataDescriptor.sol";
 
 import "./ServiceMetadataDescriptor.sol";
 import "./Registry.sol";
-import "./Service.sol";
-
-
-
 
 interface IServiceCredit {
     function valueContractAddress() external view returns (address);
     function valueDecimals() external view returns (uint8);
 }
 
-
 contract Offering is ERC3525, AccessControl {
     
     Registry internal _registry;
+    
+    // Removed unused Pool _pool;
 
     uint256 internal _totalBalance;
     
@@ -33,10 +28,15 @@ contract Offering is ERC3525, AccessControl {
     address internal _revenueAcct;
     address internal _mktAdmin;
     
+    
     int256 internal _hundredPctMilliBasisPts = 10000 * 1000;
+ 
+    
+    // Rate precision is 10^18, matching CashCredit/CountsCredit
+    uint256 internal constant RATE_PRECISION = 10 ** 18;
+    
     uint256 internal _decimals;
 
-    
     mapping(uint256 => uint256) internal  _underlying;
 	
 	event ListOffering(uint256 offeringId, uint256 slot, uint256 value);
@@ -45,8 +45,6 @@ contract Offering is ERC3525, AccessControl {
     event CreditValue(uint256 tokenId, uint256 slot, uint256 value);
     event MetadataDescriptor(address  contractAddress);
     
-    
-    //enum ActionType {commented_, liked_, disliked_, consumed_, tipped_}
     enum ActionType {simmsg_, comment_, like_,  dislike_, tip_, consumed_, refund_, request_, offer_}
     enum AssetType {data_, content_, event_, app_, merchandise_, credits_, other_}
     
@@ -96,17 +94,16 @@ contract Offering is ERC3525, AccessControl {
 	
     mapping(uint256 => mapping(address => mapping(uint256 => Access))) internal _accessLedger;
 
-    ERC20 internal _valueContract;
+    ERC20 internal _valueContract; // USDC
     uint256 private _offerIdGenerator;
 	uint256 private _assetInteractionIdGenerator;
-	
 	
 	bytes32 public constant MKT_ARBITRATOR_ROLE = keccak256("MKT_ARBITRATOR_ROLE");
     bytes32 public constant SERVICE_ADMIN_ROLE = keccak256("SERVICE_ADMIN_ROLE");
 
     constructor(address revenueAcct_,
         		address registry_,
-        		address poolContract_,
+        		address poolContract_, // Kept in args to not break deployment script, but unused
         		address underlyingContract_,
         		string memory name_, 
         		string memory symbol_, 
@@ -115,9 +112,10 @@ contract Offering is ERC3525, AccessControl {
         		string memory contractImage_,
         		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
         		    
-        
         _revenueAcct = revenueAcct_;
         _registry = Registry(registry_);
+        
+        // _pool = Pool(poolContract_); // Removed
 
         _valueContract = ERC20(underlyingContract_); 
         _valueContractAddress = underlyingContract_;
@@ -133,19 +131,9 @@ contract Offering is ERC3525, AccessControl {
         emit MetadataDescriptor(address(metadataDescriptor));    
  	}
         		
-        		
-      
    	function supportsInterface(bytes4 interfaceId) public view virtual override(ERC3525, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
-    
- 
-    
-    
-    
-
-    
-    
     
     function mktListOffering(	address owner_, 
         						string[] memory asset_,
@@ -163,9 +151,7 @@ contract Offering is ERC3525, AccessControl {
         
         uint256 offeringId = _createOfferingId();
         
-        
         bytes32[] memory offeringAssets = new bytes32[](asset_.length);
-        
         
         for(uint8 i=0; i < asset_.length; ++i){
             bytes32 assetIdBytes = keccak256(bytes(asset_[i]));
@@ -197,7 +183,7 @@ contract Offering is ERC3525, AccessControl {
 	        _assets[assetIdBytes].assetUri = assetUri_[i];
 	        _assets[assetIdBytes].assetType = atype;
 	        
-	        offeringAssets[i] = assetIdBytes; //Asset({assetId: asset_[i], assetUri: assetUri_[i], assetType: atype});
+	        offeringAssets[i] = assetIdBytes; 
         }
         
         _offerings[offeringId].creator = owner_;
@@ -216,63 +202,66 @@ contract Offering is ERC3525, AccessControl {
 	   _registry.setAssetOffering(offeringAssetIdBytes, offeringId);
 	   
 	    emit ListOffering(offeringId, slotId_, value_);
-	   			
     }
-    
     
     function grantAccess(address user_, uint256 offeringId_) public view returns (bool) {
         require(_offerings[offeringId_].creator != address(0), 'Offering not found');
         return (_offerings[offeringId_].creator == user_);
     }
     
-    
-    
-    
-    function mintFromCredits(address creditContract_, 
-        			uint256 creditTokenId_,
-        			uint256 discountMilliBasisPts_,
-        			address owner_, 
-        			uint256 slotId_,
-        			uint256 value_,
-        			string memory offeringAssetId_) public virtual returns (uint256) {
+    /**
+     * @notice Called by Credit contracts to purchase an offering/asset.
+     * @param creditContract_ The address of the credit contract paying (e.g. CashCredit)
+     * @param creditTokenId_ The ID of the credit token used (for legacy tracking)
+     * @param rate_ The value rate of the credits (1e18 precision)
+     * @param owner_ The recipient of the new asset
+     * @param slotId_ The slot of the asset
+     * @param value_ The Face Value of credits being spent
+     * @param offeringAssetId_ UUID of the asset
+     */
+    function mintFromCredits(
+        address creditContract_, 
+        uint256 creditTokenId_,
+        uint256 rate_, 
+        address owner_, 
+        uint256 slotId_,
+        uint256 value_,
+        string memory offeringAssetId_
+    ) public virtual returns (uint256) {
       	
-      	uint256 creditSlotId_ = _registry.slotOf(creditContract_, creditTokenId_);
       	require(_approvedCredit[creditContract_], 'Credit contract not approved');
-      	require(creditSlotId_ == slotId_, 'credits not approved for this offering');
       	
-      	
-      	
-       	uint256 uValue = uint256((_hundredPctMilliBasisPts - int256(discountMilliBasisPts_) / int256(10 ** _decimals)) * int256(value_) / _hundredPctMilliBasisPts);
+        // 1. Calculate Backing USDC Value using Rate
+        // uValue = (FaceValue * Rate) / 1e18
+       	uint256 uValue = (value_ * rate_) / RATE_PRECISION;
        
-      	
-      	uint256 tokenId = mint(	owner_, slotId_,  uValue,  offeringAssetId_);
+        // 2. Pull USDC from the Payer (Credit Contract)
+        // The Credit Contract must have called approve() on the USDC token for this Offering contract
+        require(_valueContract.transferFrom(msg.sender, address(this), uValue), "USDC transfer failed");
+
+        // 3. Mint the Asset
+        // We mint a token with balance = uValue (Paid Value) 
+        // representing the share of the asset purchased.
+      	uint256 tokenId = mint(owner_, slotId_, uValue, offeringAssetId_);
 				      	    	
 		emit CreditValue(tokenId, slotId_, uValue);
-		
-		//_valueContract.transferFrom(_meriticMktAdmin, address(this), uValue);
 		
 		bytes32 assetIdBytes = keccak256(bytes(offeringAssetId_));
 		uint256 offeringId = _registry.assetOffering(assetIdBytes);
 
-		
       	_accessLedger[offeringId][creditContract_][creditTokenId_] = Access({startTime: block.timestamp, endTime: 0});
       	
       	return tokenId;
     }
-      	
-      	
       	
     function assetOffering(string memory offeringAssetId_) public view returns (uint256) {
         bytes32 assetIdBytes = keccak256(bytes(offeringAssetId_));
         return _registry.assetOffering(assetIdBytes);
     }
     
-
     function offering(uint256 offeringId_) public view returns (SvcOffering memory) {
         return _offerings[offeringId_];
     }
-    
-    
 	
 	function mint(address owner_, 
         			uint256 slotId_, 
@@ -288,10 +277,8 @@ contract Offering is ERC3525, AccessControl {
 
        uint256 tokenId = ERC3525._mint(owner_, slotId_, value_);
   
-       
-       
-	   int256 share = _hundredPctMilliBasisPts;
-   	   _offerings[offeringId].tokens.push(tokenId); //FracShare({tokenId: tokenId, fracShare: share}));
+	   int256 share = 10000 * 1000; // 100% basis points
+   	   _offerings[offeringId].tokens.push(tokenId);
     
        _tokenOfferings[tokenId].push(offeringId);
        _tokenOffering[tokenId][offeringId] = true;
@@ -303,16 +290,12 @@ contract Offering is ERC3525, AccessControl {
    										_offerings[offeringId].image, 
    										_offerings[offeringId].properties);
 
-
        _totalBalance += value_;
        _approvedValues[slotId_][owner_] += value_;
-       
        
        emit MintOffering(tokenId, slotId_, value_);
        return tokenId;
   	}
-  	
-  	
   	
   	function accessFromCredits(	address creditContract_, 
         						uint256 creditTokenId_, uint256 creditSlotId_, uint256 discountMilliBasisPts_, 
@@ -320,22 +303,18 @@ contract Offering is ERC3525, AccessControl {
         
         require(_approvedCredit[creditContract_], 'Credit contract not approved');
       	
-        
         bytes32 assetIdBytes = keccak256(bytes(offeringAssetId_));	    
     	uint256 offeringId = _registry.assetOffering(assetIdBytes);
     	
     	require(creditSlotId_ == _offerings[offeringId].slotId, 'credits not approved for this offering');
     	_accessLedger[offeringId][creditContract_][creditTokenId_] = Access({startTime: block.timestamp, endTime: endTime_});
+        return true;
     }
     
-    
-    
-  	
   	function access(uint256 offeringId_, address tokenContract_, uint256 tokenId_) public  virtual returns (bool) {
   	    Access memory obj = _accessLedger[offeringId_][tokenContract_][tokenId_];
   	    return (obj.startTime >= block.timestamp && (obj.endTime == 0 || obj.endTime < block.timestamp));
   	}
-  	
   	
   	function updateTokenMetadataDescriptor( uint256 tokenId_, string memory offeringAssetId_, 
   	    									string memory tokenDescription_, string memory tokenImage_, string memory properties_) internal {
@@ -346,26 +325,16 @@ contract Offering is ERC3525, AccessControl {
        	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenProperty(tokenId_, properties_);
   	}
   	
-  	
-  	
-  	
   	function approveCredit(address creditContract_) public {
-  	    //require(_registry.hasAccess('MKT_ADMIN', msg.sender), 'Sender not authorized to approve credit');
-  	    //Service svc = Service(creditContract_);
   	    IServiceCredit svc = IServiceCredit(creditContract_);
   	    require(svc.valueContractAddress() == _valueContractAddress, 'Value contract mismatch');
   	    require(svc.valueDecimals() == ERC3525.valueDecimals(), 'Decimals mismatch');
 		_approvedCredit[creditContract_] = true; 
   	}
   	
-  	
-  	
   	function isApproveCredit(address creditContract_) public view returns (bool) {
   	    return _approvedCredit[creditContract_];
   	}
-  	
-  	
-  	
   	
   	function transferFrom(
         uint256 fromTokenId_,
@@ -375,7 +344,6 @@ contract Offering is ERC3525, AccessControl {
   		require(_tokenOfferings[fromTokenId_].length > 0, 'Token has no offering');
         require(value_ > 0 && (value_ / _tokenOfferings[fromTokenId_].length > 0), string(abi.encodePacked('Value less than minimum')));
     
-        /* Need to set metdataDesxriptor for new offeringId */
         uint256 slotId_ = ERC3525.slotOf(fromTokenId_);
         
         _approvedValues[slotId_][msg.sender] -= value_;
@@ -383,14 +351,11 @@ contract Offering is ERC3525, AccessControl {
         
         uint256 newTokenId =  ERC3525.transferFrom(fromTokenId_, to_, value_);
         
-
-        // int256 deltaVal = int256(value_ / _tokenOfferings[fromTokenId_].length);
         int256 totValue = 0;
         for(uint8 i=0; i < _tokenOfferings[fromTokenId_].length; ++i){
             uint256 offeringId = _tokenOfferings[fromTokenId_][i];
             totValue += _offerings[offeringId].value;
         }
-        
         
         for(uint8 i=0; i < _tokenOfferings[fromTokenId_].length; ++i){
             uint256 offeringId = _tokenOfferings[fromTokenId_][i];
@@ -405,11 +370,8 @@ contract Offering is ERC3525, AccessControl {
         	_offerings[offeringId].tokens.push(newTokenId); 
         }
         
-        
         return newTokenId;
     }
-    
-    
     
     function numOwners(uint256 offeringId_) public view returns (uint256) {
         return _offerings[offeringId_].tokens.length;
@@ -421,7 +383,6 @@ contract Offering is ERC3525, AccessControl {
         return _offeringShare[tokenId_][offeringId];
     }
     
-    
     function updateFracOwnership(uint256 offeringId_, int256 value_) internal {
         
         int256 oldOfferingVal = _offerings[offeringId_].value;
@@ -429,16 +390,12 @@ contract Offering is ERC3525, AccessControl {
         
         for(uint8 i=0; i < _offerings[offeringId_].tokens.length; ++i){
             uint256 tokenId  = _offerings[offeringId_].tokens[i];
-            //FracShare memory token = _offerings[offeringId_].tokens[i];
             int256 oldShare = _offeringShare[tokenId][offeringId_];
             int256 newShare = (oldShare * oldOfferingVal) / _offerings[offeringId_].value;
             _tokenOffering[tokenId][offeringId_] = true;
             _offeringShare[tokenId][offeringId_] = newShare;
-            //_offerings[offeringId_].tokens[i].fracShare = newShare;
         } 
     }
-    
-    
     
     function transferFrom(
         uint256 fromTokenId_,
@@ -455,9 +412,7 @@ contract Offering is ERC3525, AccessControl {
         _approvedValues[slotId_][fromAddr_] -= value_;
         _approvedValues[slotId_][toAddr_] += value_;
         
-        
         int256 deltaVal = int256(value_) / int256(_tokenOfferings[fromTokenId_].length);
-  		
   		int256 totValue = 0;
   		
         for(uint8 i=0; i < _tokenOfferings[fromTokenId_].length; ++i){
@@ -485,11 +440,6 @@ contract Offering is ERC3525, AccessControl {
         }
     }
     
-    
-  	
-  	
-  	
-  	
   	function transferFrom(
         address from_,
         address to_,
@@ -498,17 +448,11 @@ contract Offering is ERC3525, AccessControl {
         
         ERC3525.transferFrom( from_, to_, tokenId_);
         uint256 slotId_ = ERC3525.slotOf(tokenId_);
-        
         uint256 value_ = ERC3525.balanceOf(tokenId_);
         
         _approvedValues[slotId_][from_] -= value_;
         _approvedValues[slotId_][to_] += value_;
     }
-    
-    
-    
-    
-    
     
   	function redeem(uint256 tokenId_, uint256 slotId_, uint256 value_) external {
 	    
@@ -529,11 +473,7 @@ contract Offering is ERC3525, AccessControl {
        
 	   _totalBalance -= value_;
 	   super._burnValue(tokenId_, value_);
-
 	}
-  	
-  	
-  	
   	
   	function addUserAction(string memory assetId_, uint256 msgId_, ActionType actionType_) external {
   	    bytes32 assetIdBytes = keccak256(bytes(assetId_));

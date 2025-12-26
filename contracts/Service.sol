@@ -208,23 +208,6 @@ contract Service is ERC3525, AccessControl {
   	
   	
   	
-  	function networkMintWithDiscount(address owner_, uint256 slot_, uint256 value_, uint256 discountBasisPts_,
-        			string memory uuid_, string memory tokenDescription_, string memory tokenImage_, string memory property_) public virtual returns (uint256) {
-        			    
-    	uint256 tokenId = ERC3525._createOriginalTokenId();
-           
-    	uint256 regTokenId = _slotPool.mintWithDiscount(owner_, slot_, value_, discountBasisPts_);
-        
-        networkTokenId[tokenId] = regTokenId;
-        
-        ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenUUID(tokenId, uuid_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenDescription(tokenId, tokenDescription_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenImage(tokenId, tokenImage_);
-    	ServiceMetadataDescriptor(address(metadataDescriptor)).setTokenProperty(tokenId, property_);
-    	
-        return tokenId;
- 	}
- 	
  	function networkMintWithValueRate(address owner_, uint256 slot_, uint256 value_, uint256 valueRate_,
         			string memory uuid_, string memory tokenDescription_, string memory tokenImage_, string memory property_) public returns (uint256) {
         			    
