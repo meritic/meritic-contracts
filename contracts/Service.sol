@@ -5,6 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
 import "@solvprotocol/erc-3525/ERC3525.sol";
 
 
@@ -21,10 +24,18 @@ import "./extensions/Underlying.sol";
 import "./RoyaltyDistributor.sol";
 
 
-contract Service is ERC3525, AccessControl {
+
+
+
+
+
+
+contract Service is ERC3525, AccessControl, EIP712 {
     
     using Strings for address;
     using Strings for uint256;
+    using ECDSA for bytes32;
+    
     
     address internal _revenueAddress;
     address internal _meriticMktAdmin;
@@ -34,11 +45,13 @@ contract Service is ERC3525, AccessControl {
     
     
     RoyaltyDistributor public royaltyDistributor;
+
+    IERC20 internal _underlying;
     
-    // The backing token (USDC, DAI, etc.)
-    IERC20 internal _underlying; 
+    mapping(uint256 => bool) public usedNonces;
     
-    Pool internal _poolContract;
+    // typehash must match the types object from user frontend for consume
+    bytes32 private constant CONSUME_TYPEHASH = keccak256("Consume(uint256 tokenId,uint256 amount,uint256 nonce,uint256 deadline)");
     
     uint256 internal _decimals; 
     uint256 private _offerIdGenerator;
@@ -88,7 +101,10 @@ contract Service is ERC3525, AccessControl {
         		string memory contractDescription_,
         		string memory contractImage_,
         		string memory contractType_,
-        		uint8 decimals_) ERC3525(name_, symbol_, decimals_) {
+        		uint8 decimals_) 
+        ERC3525(name_, symbol_, decimals_) 
+        EIP712(name_, "1")  
+   	{
       
 		_grantRole(DEFAULT_ADMIN_ROLE, mktAdmin_);
         _meriticMktAdmin = mktAdmin_;
@@ -114,6 +130,47 @@ contract Service is ERC3525, AccessControl {
         _decimals = decimals_; 
         emit MetadataDescriptor(address(metadataDescriptor));
     }
+    
+    
+    /**
+     * @notice Verifies that the owner of a token signed a specific credit consumption request.
+     * @dev Called by Child Contracts (Cash/Counts/Time) in consumeWithSignature
+     */
+    function _verifySignature(
+        uint256 tokenId,
+        uint256 amount,
+        uint256 nonce,
+        uint256 deadline,
+        bytes memory signature
+    ) internal {
+        // Check Deadline
+        require(block.timestamp <= deadline, "Signature expired");
+
+        // Check Nonce (Prevent Replay)
+        require(!usedNonces[nonce], "Nonce already used");
+        usedNonces[nonce] = true;
+
+        // Reconstruct the Digest (The data that was signed)
+        bytes32 structHash = keccak256(abi.encode(
+            CONSUME_TYPEHASH,
+            tokenId,
+            amount,
+            nonce,
+            deadline
+        ));
+
+        // _hashTypedDataV4 comes from EIP712 inheritance
+        bytes32 digest = _hashTypedDataV4(structHash);
+
+        // Recover the Signer
+        address signer = ECDSA.recover(digest, signature);
+
+        // Verify Signer is the Token Owner
+        // Use ownerOf from ERC3525 to verify
+        require(signer == ownerOf(tokenId), "Invalid signature or not token owner");
+    }
+    
+    
     
     
     function setRoyaltyDistributor(address distributor_) external virtual {
@@ -153,7 +210,7 @@ contract Service is ERC3525, AccessControl {
         uint256 firstTokenId,
         uint256 batchSize
     ) internal virtual  {
-        // Call parent hook if it exists in your ERC3525 version, otherwise remove super call
+   
         // super._afterTokenTransfer(from, to, firstTokenId, batchSize);
         
         // When a user receives a token, remember it for their slot

@@ -56,7 +56,21 @@ contract CountsCredit is Service {
     }
 
 
-    function consumeWithRoyalties(
+    
+    
+    function consumeCredits(
+    	uint256 tokenId_, 
+    	uint256 value_,
+    	uint256 nonce_, 
+    	uint256 deadline_, 
+        bytes calldata signature_
+    ) external {
+    	_verifySignature(tokenId_, value_, nonce_, deadline_, signature_);
+        _consumeLogic(tokenId_, value_, new address[](0), new uint256[](0));
+    }
+
+
+	function consumeWithRoyalties(
         uint256 tokenId_, 
         uint256 consumeValue_, 
         address[] calldata royaltyRecipients, 
@@ -64,6 +78,23 @@ contract CountsCredit is Service {
     ) external {
         _consumeLogic(tokenId_, consumeValue_, royaltyRecipients, royaltyAmounts);
     }
+
+    function consumeWithRoyalties(
+        uint256 tokenId_, 
+        uint256 consumeValue_,
+        address[] calldata royaltyRecipients, 
+        uint256[] calldata royaltyAmounts,
+        uint256 nonce_, 
+    	uint256 deadline_, 
+        bytes calldata signature_
+    ) external {
+    	_verifySignature(tokenId_, consumeValue_, nonce_, deadline_, signature_);
+        _consumeLogic(tokenId_, consumeValue_, royaltyRecipients, royaltyAmounts);
+    }
+    
+    
+    
+    
 
 
     function _consumeLogic(

@@ -103,17 +103,58 @@ contract CashCredit is Service, ILedgerUpdate {
     }
     
     
-    function consumeCredits(uint256 tokenId_, uint256 consumeValue_) external {
+    
+    function consumeCredits(
+    	uint256 tokenId_, 
+    	uint256 consumeValue_
+    ) external {
         _consumeLogic(tokenId_, consumeValue_, new address[](0), new uint256[](0));
     }
+    
+    
+
+    
+    
+    
+    function consumeCredits(
+    	uint256 tokenId_, 
+    	uint256 consumeValue_, 
+    	uint256 nonce_, 
+    	uint256 deadline_, 
+    	bytes calldata signature_
+    ) external {
+    	
+    	_verifySignature(tokenId_, consumeValue_, nonce_, deadline_, signature_);
+        _consumeLogic(tokenId_, consumeValue_, new address[](0), new uint256[](0));
+    }
+    
+    
+    
+    
+    function consumeWithRoyalties(
+        uint256 tokenId_, 
+        uint256 consumeValue_,
+        address[] calldata royaltyRecipients_, 
+        uint256[] calldata royaltyAmounts_
+    ) external {
+        _consumeLogic(tokenId_, consumeValue_, royaltyRecipients_, royaltyAmounts_);
+    }
+    
+    
+    
+    
     
     function consumeWithRoyalties(
         uint256 tokenId_, 
         uint256 consumeValue_, 
-        address[] calldata royaltyRecipients, 
-        uint256[] calldata royaltyAmounts
+        address[] calldata royaltyRecipients_, 
+        uint256[] calldata royaltyAmounts_,
+        uint256 nonce_, 
+    	uint256 deadline_, 
+        bytes calldata signature_
     ) external {
-        _consumeLogic(tokenId_, consumeValue_, royaltyRecipients, royaltyAmounts);
+    	_verifySignature(tokenId_, consumeValue_, nonce_, deadline_, signature_);
+        _consumeLogic(tokenId_, consumeValue_, royaltyRecipients_, royaltyAmounts_);
     }
     
     
